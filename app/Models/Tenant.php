@@ -2,25 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Tenant extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
+    /**
+     * Only guard id and subscription_plan_id so create/update can set the rest.
+     *
+     * @var array<int, string>
+     */
     protected $guarded = [
         'id',
         'subscription_plan_id',
-        'name',
-        'host',
-        'storage_domain',
-        'database_name',
-        'database_username',
-        'database_password',
-        'database_host',
-        'database_port',
-        'is_active',
     ];
 
     public $incrementing = false;

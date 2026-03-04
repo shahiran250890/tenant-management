@@ -3,6 +3,8 @@ export type Tenant = {
     id: string;
     subscription_plan_id: string;
     name: string;
+    host: string;
+    storage_domain: string;
     database_name: string;
     database_username: string;
     database_password: string;

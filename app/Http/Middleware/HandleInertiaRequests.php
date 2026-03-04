@@ -45,8 +45,11 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'modal' => $request->session()->get('modal'),
                 'modal_user_id' => $request->session()->get('modal_user_id'),
+                'modal_tenant_id' => $request->session()->get('modal_tenant_id'),
                 'success' => $request->session()->get('success'),
                 'success_key' => $request->session()->get('success_key'),
+                'error' => $request->session()->get('error'),
+                'error_key' => $request->session()->get('error_key'),
             ],
         ];
     }
