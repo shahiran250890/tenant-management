@@ -38,10 +38,20 @@ class UserController extends Controller
     public function store(UserRequest $request): RedirectResponse
     {
         $validated = $request->safe()->only(['name', 'email', 'password']);
-        $user = User::create($validated);
 
-        if ($request->filled('role')) {
-            $user->assignRole($request->validated('role'));
+        try {
+            $user = User::create($validated);
+
+            if ($request->filled('role')) {
+                $user->assignRole($request->validated('role'));
+            }
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('users.index', ['modal' => 'create'])
+                ->with('error', 'Failed to create user. Please try again.')
+                ->with('error_key', now()->timestamp);
         }
 
         return redirect()
@@ -50,13 +60,9 @@ class UserController extends Controller
             ->with('success_key', now()->timestamp);
     }
 
-    public function show(User $user): Response
+    public function show(User $user): RedirectResponse
     {
-        $user->load('roles');
-
-        return Inertia::render('users/view', [
-            'user' => $user,
-        ]);
+        return redirect()->route('users.index', ['modal' => 'view', 'user_id' => $user->id]);
     }
 
     public function edit(User $user): RedirectResponse
@@ -70,10 +76,20 @@ class UserController extends Controller
         if ($request->filled('password')) {
             $validated['password'] = $request->validated('password');
         }
-        $user->update($validated);
 
-        if ($request->has('role')) {
-            $user->syncRoles($request->filled('role') ? [$request->validated('role')] : []);
+        try {
+            $user->update($validated);
+
+            if ($request->has('role')) {
+                $user->syncRoles($request->filled('role') ? [$request->validated('role')] : []);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('users.index', ['modal' => 'edit', 'user_id' => $user->id])
+                ->with('error', 'Failed to update user. Please try again.')
+                ->with('error_key', now()->timestamp);
         }
 
         return redirect()
@@ -86,7 +102,16 @@ class UserController extends Controller
     {
         abort_unless(auth()->user()->can('delete user'), 403);
 
-        $user->delete();
+        try {
+            $user->delete();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'Failed to delete user. Please try again.')
+                ->with('error_key', now()->timestamp);
+        }
 
         return redirect()
             ->route('users.index')

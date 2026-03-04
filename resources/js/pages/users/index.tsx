@@ -1,11 +1,12 @@
 import { Form, Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FormatDateTime } from '@/components/format-date-time';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import usersRoutes from '@/routes/users';
 import type { BreadcrumbItem, User } from '@/types';
-import { CheckCircle2, EllipsisVertical, Eye, Pencil, Trash2, UserPlus } from 'lucide-react';
+import FlashMessageDialog from '@/components/flash-message-dialog';
+import { EllipsisVertical, Eye, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -66,6 +67,8 @@ type Flash = {
     modal_user_id?: number;
     success?: string;
     success_key?: number;
+    error?: string;
+    error_key?: number;
 };
 
 export default function Index({
@@ -91,8 +94,9 @@ export default function Index({
     // Create/edit user modal: 'create' | user to edit | null (closed).
     const [userFormModal, setUserFormModal] = useState<'create' | UserWithRoles | null>(null);
 
-    // Open modal from URL or flash (e.g. after redirect or validation error).
+    // Open modal from URL or flash (e.g. after redirect or validation error). Don't re-open on error.
     useEffect(() => {
+        if (flash?.error) return;
         const modal = openModal ?? flash?.modal;
         const userId = openModalUserId ?? flash?.modal_user_id;
         if (modal === 'create') {
@@ -100,35 +104,47 @@ export default function Index({
         } else if (modal === 'edit' && userId) {
             const u = users.find((x) => x.id === userId);
             if (u) setUserFormModal(u);
+        } else if (modal === 'view' && userId) {
+            const u = users.find((x) => x.id === userId);
+            if (u) setViewUser(u);
         }
-    }, [openModal, openModalUserId, flash?.modal, flash?.modal_user_id, users]);
-
-    // On success (after store/update redirect), reset success dismissed and close the form modal.
-    // Depend on success_key so every new success (same or different message) re-runs this effect.
-    useEffect(() => {
-        if (flash?.success) {
-            setSuccessDismissed(false);
-            setUserFormModal(null);
-            setShowPasswordInEdit(false);
-        }
-    }, [flash?.success, flash?.success_key]);
+    }, [openModal, openModalUserId, flash?.modal, flash?.modal_user_id, flash?.error, users]);
 
     const isCreate = userFormModal === 'create';
     const editUser = userFormModal !== null && userFormModal !== 'create' ? userFormModal : null;
     // In edit mode, show password fields only after clicking "Change password".
     const [showPasswordInEdit, setShowPasswordInEdit] = useState(false);
-    // Hide success banner when user dismisses it.
     const [successDismissed, setSuccessDismissed] = useState(false);
+    const [errorDismissed, setErrorDismissed] = useState(false);
     const showSuccess = flash?.success && !successDismissed;
+    const showError = flash?.error && !errorDismissed;
+    const showFlashMessage = showSuccess || showError;
+    const isSuccessFlash = !!flash?.success && !successDismissed;
+    const flashMessage = flash?.success ?? flash?.error ?? '';
+
+    // Reset success dismissed when a new success is flashed.
+    useEffect(() => {
+        if (flash?.success) setSuccessDismissed(false);
+    }, [flash?.success, flash?.success_key]);
+    // Reset error dismissed when a new error is flashed.
+    useEffect(() => {
+        if (flash?.error) setErrorDismissed(false);
+    }, [flash?.error, flash?.error_key]);
+    // Close form modal and reset password UI on success or error redirect.
+    useEffect(() => {
+        if (flash?.success || flash?.error) {
+            setUserFormModal(null);
+            setShowPasswordInEdit(false);
+        }
+    }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
+
+    const dismissFlash = useCallback(() => {
+        setSuccessDismissed(true);
+        setErrorDismissed(true);
+    }, []);
+
     // User pending delete confirmation (null = confirmation dialog closed).
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserWithRoles | null>(null);
-
-    // Auto-close success dialog after 3 seconds.
-    useEffect(() => {
-        if (!showSuccess) return;
-        const timer = window.setTimeout(() => setSuccessDismissed(true), 1000);
-        return () => window.clearTimeout(timer);
-    }, [showSuccess]);
 
     const roleOptions = useMemo(() => {
         const names = new Set<string>();
@@ -329,22 +345,13 @@ export default function Index({
                 </div>
             </div>
 
-            {/* Success message dialog (no X button; closes on overlay click or after 3s) */}
-            <Dialog open={!!showSuccess} onOpenChange={(open) => !open && setSuccessDismissed(true)}>
-                <DialogContent className="sm:max-w-md" showCloseButton={false}>
-                    <div className="flex flex-col items-center gap-4 py-2 text-center">
-                        <div className="flex size-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                            <CheckCircle2 className="size-7 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div className="space-y-1">
-                            <DialogHeader>
-                                <DialogTitle>Success</DialogTitle>
-                            </DialogHeader>
-                            <p className="text-sm text-muted-foreground">{flash?.success}</p>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <FlashMessageDialog
+                open={!!showFlashMessage}
+                variant={isSuccessFlash ? 'success' : 'error'}
+                message={flashMessage}
+                onClose={dismissFlash}
+                autoCloseMs={2000}
+            />
 
             {/* Delete user confirmation dialog */}
             <Dialog open={!!deleteConfirmUser} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>
