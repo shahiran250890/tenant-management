@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Users;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Users\UserRequest;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    public function index(\Illuminate\Http\Request $request): \Inertia\Response
+    public function index(Request $request): Response
     {
         $users = User::with('roles')->get();
         $roles = Role::orderBy('name')->pluck('name')->toArray();
@@ -27,12 +30,12 @@ class UserController extends Controller
         ]);
     }
 
-    public function create(): \Illuminate\Http\RedirectResponse
+    public function create(): RedirectResponse
     {
         return redirect()->route('users.index', ['modal' => 'create']);
     }
 
-    public function store(UserRequest $request): \Illuminate\Http\RedirectResponse
+    public function store(UserRequest $request): RedirectResponse
     {
         $validated = $request->safe()->only(['name', 'email', 'password']);
         $user = User::create($validated);
@@ -47,7 +50,7 @@ class UserController extends Controller
             ->with('success_key', now()->timestamp);
     }
 
-    public function show(User $user): \Inertia\Response
+    public function show(User $user): Response
     {
         $user->load('roles');
 
@@ -56,12 +59,12 @@ class UserController extends Controller
         ]);
     }
 
-    public function edit(User $user): \Illuminate\Http\RedirectResponse
+    public function edit(User $user): RedirectResponse
     {
         return redirect()->route('users.index', ['modal' => 'edit', 'user_id' => $user->id]);
     }
 
-    public function update(UserRequest $request, User $user): \Illuminate\Http\RedirectResponse
+    public function update(UserRequest $request, User $user): RedirectResponse
     {
         $validated = $request->safe()->only(['name', 'email']);
         if ($request->filled('password')) {
@@ -79,7 +82,7 @@ class UserController extends Controller
             ->with('success_key', now()->timestamp);
     }
 
-    public function destroy(User $user): \Illuminate\Http\RedirectResponse
+    public function destroy(User $user): RedirectResponse
     {
         abort_unless(auth()->user()->can('delete user'), 403);
 
