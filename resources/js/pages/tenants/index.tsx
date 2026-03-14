@@ -1,4 +1,5 @@
 import { FormatDateTime } from '@/components/format-date-time';
+import { ModernPageLayout } from '@/components/modern-page-layout';
 import { Form, Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
@@ -12,13 +13,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import FlashMessageDialog from '@/components/flash-message-dialog';
 import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -141,24 +137,29 @@ export default function Tenants({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tenants" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="flex flex-wrap items-center gap-3">
-                    <Input
-                        type="search"
-                        placeholder="Filter by name"
-                        value={nameFilter}
-                        onChange={(e) => setNameFilter(e.target.value)}
-                        className="max-w-md"
-                        aria-label="Filter tenants by name"
-                    />
-                    {canCreateTenant && (
-                        <Button onClick={() => setTenantFormModal('create')}>
-                            <Plus className="size-4" />
-                            New tenant
-                        </Button>
-                    )}
-                </div>
-                <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+            <ModernPageLayout
+                title="Tenants"
+                description="Manage tenant organizations"
+                actions={
+                    <div className="flex items-center gap-2 flex-nowrap">
+                        <Input
+                            type="search"
+                            placeholder="Filter by name"
+                            value={nameFilter}
+                            onChange={(e) => setNameFilter(e.target.value)}
+                            className="min-w-0 shrink sm:min-w-[20rem] sm:max-w-xl"
+                            aria-label="Filter tenants by name"
+                        />
+                        {canCreateTenant && (
+                            <Button onClick={() => setTenantFormModal('create')} className="shrink-0">
+                                <Plus className="size-4" />
+                                New tenant
+                            </Button>
+                        )}
+                    </div>
+                }
+                contentClassName="min-h-0">
+                <div className="rounded-xl border border-border/60 dark:border-border">
                     <table className="w-full table-auto text-left text-sm">
                         <thead>
                             <tr className="border-b border-sidebar-border/70 bg-muted/40 dark:border-sidebar-border dark:bg-muted/20">
@@ -254,7 +255,7 @@ export default function Tenants({
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </ModernPageLayout>
 
             <FlashMessageDialog
                 open={!!showFlashMessage}
@@ -268,29 +269,31 @@ export default function Tenants({
             <Dialog open={!!deleteConfirmTenant} onOpenChange={(open) => !open && setDeleteConfirmTenant(null)}>
                 <DialogContent>
                     {deleteConfirmTenant && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>Delete tenant</DialogTitle>
-                            </DialogHeader>
-                            <p className="text-sm text-muted-foreground">
-                                Are you sure you want to delete <strong>{deleteConfirmTenant.name}</strong>? This
-                                cannot be undone.
-                            </p>
-                            <DialogFooter>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => {
-                                        router.delete(tenantsRoutes.destroy.url(deleteConfirmTenant.id));
-                                        setDeleteConfirmTenant(null);
-                                    }}
-                                >
-                                    Delete
-                                </Button>
-                                <Button variant="outline" onClick={() => setDeleteConfirmTenant(null)}>
-                                    Cancel
-                                </Button>
-                            </DialogFooter>
-                        </>
+                        <ModernDialogLayout
+                            title="Delete tenant"
+                            description={
+                                <>
+                                    Are you sure you want to delete <strong>{deleteConfirmTenant.name}</strong>?
+                                    This cannot be undone.
+                                </>
+                            }
+                            footer={
+                                <>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            router.delete(tenantsRoutes.destroy.url(deleteConfirmTenant.id));
+                                            setDeleteConfirmTenant(null);
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setDeleteConfirmTenant(null)}>
+                                        Cancel
+                                    </Button>
+                                </>
+                            }
+                        />
                     )}
                 </DialogContent>
             </Dialog>
@@ -299,10 +302,26 @@ export default function Tenants({
             <Dialog open={!!viewTenant} onOpenChange={(open) => !open && setViewTenant(null)}>
                 <DialogContent className="sm:max-w-md">
                     {viewTenant && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>{viewTenant.name}</DialogTitle>
-                            </DialogHeader>
+                        <ModernDialogLayout
+                            title={viewTenant.name}
+                            footer={
+                                <>
+                                    {canUpdateTenant && (
+                                        <Button
+                                            onClick={() => {
+                                                setViewTenant(null);
+                                                setTenantFormModal(viewTenant);
+                                            }}
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                                    <Button variant="outline" onClick={() => setViewTenant(null)}>
+                                        Close
+                                    </Button>
+                                </>
+                            }
+                        >
                             <dl className="grid gap-3 text-sm">
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Host</dt>
@@ -349,27 +368,12 @@ export default function Tenants({
                                     </dd>
                                 </div>
                             </dl>
-                            <DialogFooter>
-                                {canUpdateTenant && (
-                                    <Button
-                                        onClick={() => {
-                                            setViewTenant(null);
-                                            setTenantFormModal(viewTenant);
-                                        }}
-                                    >
-                                        Edit
-                                    </Button>
-                                )}
-                                <Button variant="outline" onClick={() => setViewTenant(null)}>
-                                    Close
-                                </Button>
-                            </DialogFooter>
-                        </>
+                        </ModernDialogLayout>
                     )}
                 </DialogContent>
             </Dialog>
 
-            {/* Create / Edit user modal (shared) */}
+            {/* Create / Edit tenant modal (shared) */}
             <Dialog
                 open={tenantFormModal !== null}
                 onOpenChange={(open) => {
@@ -387,78 +391,81 @@ export default function Tenants({
                             className="flex flex-col gap-4"
                         >
                             {({ processing, errors }) => (
-                                <>
-                                    <DialogHeader>
-                                        <DialogTitle>{isCreate ? 'Add Tenant' : `Edit ${editTenant?.name}`}</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="user-form-name" required>Name</Label>
-                                        <Input
-                                            id="user-form-name"
-                                            type="text"
-                                            name="name"
-                                            required
-                                            autoComplete="name"
-                                            defaultValue={editTenant?.name}
-                                            placeholder="Full name"
+                                <ModernDialogLayout
+                                    title={isCreate ? 'Add Tenant' : `Edit ${editTenant?.name}`}
+                                    footer={
+                                        <>
+                                            <Button type="submit" disabled={processing}>
+                                                {processing
+                                                    ? isCreate
+                                                        ? 'Creating…'
+                                                        : 'Saving…'
+                                                    : isCreate
+                                                        ? 'Create tenant'
+                                                        : 'Save changes'}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => setTenantFormModal(null)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </>
+                                    }
+                                >
+                                    <div className="flex flex-col gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user-form-name" required>Name</Label>
+                                            <Input
+                                                id="user-form-name"
+                                                type="text"
+                                                name="name"
+                                                required
+                                                autoComplete="name"
+                                                defaultValue={editTenant?.name}
+                                                placeholder="Full name"
+                                            />
+                                            <InputError message={errors.name} />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user-form-host" required>Host</Label>
+                                            <Input
+                                                id="user-form-host"
+                                                type="text"
+                                                name="host"
+                                                required
+                                                autoComplete="host"
+                                                defaultValue={editTenant?.host}
+                                                placeholder="test.example.com"
+                                            />
+                                            <InputError message={errors.host} />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user-form-storage-domain" required>Storage Domain</Label>
+                                            <Input
+                                                id="user-form-storage-domain"
+                                                type="text"
+                                                name="storage_domain"
+                                                required
+                                                autoComplete="storage_domain"
+                                                defaultValue={editTenant?.storage_domain}
+                                                placeholder="sample_storage"
+                                            />
+                                            <InputError message={errors.storage_domain} />
+                                        </div>
+                                        <StatusToggle
+                                            label="Status"
+                                            activeLabel="Active"
+                                            inactiveLabel="Inactive"
+                                            name="is_active"
+                                            checked={isActive}
+                                            onCheckedChange={setIsActive}
+                                            error={errors.is_active}
                                         />
-                                        <InputError message={errors.name} />
                                     </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="user-form-host" required>Host</Label>
-                                        <Input
-                                            id="user-form-host"
-                                            type="text"
-                                            name="host"
-                                            required
-                                            autoComplete="host"
-                                            defaultValue={editTenant?.host}
-                                            placeholder="test.example.com"
-                                        />
-                                        <InputError message={errors.host} />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="user-form-storage-domain" required>Storage Domain</Label>
-                                        <Input
-                                            id="user-form-storage-domain"
-                                            type="text"
-                                            name="storage_domain"
-                                            required
-                                            autoComplete="storage_domain"
-                                            defaultValue={editTenant?.storage_domain}
-                                            placeholder="sample_storage"
-                                        />
-                                        <InputError message={errors.storage_domain} />
-                                    </div>
-                                    <StatusToggle
-                                        label="Status"
-                                        activeLabel="Active"
-                                        inactiveLabel="Inactive"
-                                        name="is_active"
-                                        checked={isActive}
-                                        onCheckedChange={setIsActive}
-                                        error={errors.is_active}
-                                    />
 
-                                    <DialogFooter>
-                                        <Button type="submit" disabled={processing}>
-                                            {processing
-                                                ? isCreate
-                                                    ? 'Creating…'
-                                                    : 'Saving…'
-                                                : isCreate
-                                                    ? 'Create tenant'
-                                                    : 'Save changes'}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setTenantFormModal(null)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </DialogFooter>
-                                </>
+                                </ModernDialogLayout>
                             )}
                         </Form>
                     )}

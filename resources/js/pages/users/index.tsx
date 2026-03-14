@@ -1,6 +1,7 @@
 import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FormatDateTime } from '@/components/format-date-time';
+import { ModernPageLayout } from '@/components/modern-page-layout';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import usersRoutes from '@/routes/users';
@@ -8,13 +9,8 @@ import type { BreadcrumbItem, User } from '@/types';
 import FlashMessageDialog from '@/components/flash-message-dialog';
 import { EllipsisVertical, Eye, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -174,66 +170,69 @@ export default function Index({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Users" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                {/* Name filter, role filter, and Add user button */}
-                <div className="flex flex-wrap items-center gap-3">
-                    <Input
-                        type="search"
-                        placeholder="Filter by name or email"
-                        value={nameFilter}
-                        onChange={(e) => setNameFilter(e.target.value)}
-                        className="max-w-md"
-                        aria-label="Filter users by name or email"
-                    />
-                    <Select
-                        value={roleFilter}
-                        onValueChange={setRoleFilter}
-                        open={roleFilterOpen}
-                        onOpenChange={(open) => {
-                            setRoleFilterOpen(open);
-                            if (!open) setRoleSearchQuery('');
-                            else setTimeout(() => roleSearchInputRef.current?.focus(), 0);
-                        }}
-                    >
-                        <SelectTrigger className="w-[11rem]" aria-label="Filter by role">
-                            <SelectValue placeholder="All roles" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <div className="border-b border-sidebar-border/70 px-2 pb-2 dark:border-sidebar-border">
-                                <Input
-                                    ref={roleSearchInputRef}
-                                    type="search"
-                                    placeholder="Search roles..."
-                                    value={roleSearchQuery}
-                                    onChange={(e) => setRoleSearchQuery(e.target.value)}
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                    className="h-8"
-                                    aria-label="Search roles"
-                                />
-                            </div>
-                            <SelectItem value={ROLE_FILTER_ALL}>All roles</SelectItem>
-                            {filteredRoleOptions.length === 0 && roleSearchQuery.trim() ? (
-                                <SelectItem value="__no_match__" disabled>
-                                    No roles match
-                                </SelectItem>
-                            ) : (
-                                filteredRoleOptions.map((name) => (
-                                    <SelectItem key={name} value={name}>
-                                        {name.charAt(0).toUpperCase() + name.slice(1)}
+            <ModernPageLayout
+                title="Users"
+                description="Manage user accounts and roles"
+                actions={
+                    <div className="flex items-center gap-2 flex-nowrap">
+                        <Input
+                            type="search"
+                            placeholder="Filter by name or email"
+                            value={nameFilter}
+                            onChange={(e) => setNameFilter(e.target.value)}
+                            className="min-w-0 shrink sm:min-w-[20rem] sm:max-w-xl"
+                            aria-label="Filter users by name or email"
+                        />
+                        <Select
+                            value={roleFilter}
+                            onValueChange={setRoleFilter}
+                            open={roleFilterOpen}
+                            onOpenChange={(open) => {
+                                setRoleFilterOpen(open);
+                                if (!open) setRoleSearchQuery('');
+                                else setTimeout(() => roleSearchInputRef.current?.focus(), 0);
+                            }}
+                        >
+                            <SelectTrigger className="w-[11rem] shrink-0" aria-label="Filter by role">
+                                <SelectValue placeholder="All roles" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <div className="border-b border-sidebar-border/70 px-2 pb-2 dark:border-sidebar-border">
+                                    <Input
+                                        ref={roleSearchInputRef}
+                                        type="search"
+                                        placeholder="Search roles..."
+                                        value={roleSearchQuery}
+                                        onChange={(e) => setRoleSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        className="h-8"
+                                        aria-label="Search roles"
+                                    />
+                                </div>
+                                <SelectItem value={ROLE_FILTER_ALL}>All roles</SelectItem>
+                                {filteredRoleOptions.length === 0 && roleSearchQuery.trim() ? (
+                                    <SelectItem value="__no_match__" disabled>
+                                        No roles match
                                     </SelectItem>
-                                ))
-                            )}
-                        </SelectContent>
-                    </Select>
-                    {canCreateUser && (
-                        <Button onClick={() => setUserFormModal('create')}>
-                            <UserPlus className="size-4" />
-                            Add user
-                        </Button>
-                    )}
-                </div>
-                {/* User list datatable */}
-                <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                                ) : (
+                                    filteredRoleOptions.map((name) => (
+                                        <SelectItem key={name} value={name}>
+                                            {name.charAt(0).toUpperCase() + name.slice(1)}
+                                        </SelectItem>
+                                    ))
+                                )}
+                            </SelectContent>
+                        </Select>
+                        {canCreateUser && (
+                            <Button onClick={() => setUserFormModal('create')} className="shrink-0">
+                                <UserPlus className="size-4" />
+                                Add user
+                            </Button>
+                        )}
+                    </div>
+                }
+                contentClassName="min-h-0">
+                <div className="rounded-xl border border-border/60 dark:border-border">
                     <table className="w-full table-auto text-left text-sm">
                         <thead>
                             {/* Column headers: #, Name, Email, Role, Created At, Action */}
@@ -343,7 +342,7 @@ export default function Index({
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </ModernPageLayout>
 
             <FlashMessageDialog
                 open={!!showFlashMessage}
@@ -357,41 +356,59 @@ export default function Index({
             <Dialog open={!!deleteConfirmUser} onOpenChange={(open) => !open && setDeleteConfirmUser(null)}>
                 <DialogContent>
                     {deleteConfirmUser && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>Delete user</DialogTitle>
-                            </DialogHeader>
-                            <p className="text-sm text-muted-foreground">
-                                Are you sure you want to delete <strong>{deleteConfirmUser.name}</strong>? This
-                                cannot be undone.
-                            </p>
-                            <DialogFooter>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => {
-                                        router.delete(usersRoutes.destroy.url(deleteConfirmUser.id));
-                                        setDeleteConfirmUser(null);
-                                    }}
-                                >
-                                    Delete
-                                </Button>
-                                <Button variant="outline" onClick={() => setDeleteConfirmUser(null)}>
-                                    Cancel
-                                </Button>
-                            </DialogFooter>
-                        </>
+                        <ModernDialogLayout
+                            title="Delete user"
+                            description={
+                                <>
+                                    Are you sure you want to delete <strong>{deleteConfirmUser.name}</strong>?
+                                    This cannot be undone.
+                                </>
+                            }
+                            footer={
+                                <>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            router.delete(usersRoutes.destroy.url(deleteConfirmUser.id));
+                                            setDeleteConfirmUser(null);
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setDeleteConfirmUser(null)}>
+                                        Cancel
+                                    </Button>
+                                </>
+                            }
+                        />
                     )}
                 </DialogContent>
             </Dialog>
 
             {/* View user modal */}
             <Dialog open={!!viewUser} onOpenChange={(open) => !open && setViewUser(null)}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                     {viewUser && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>{viewUser.name}</DialogTitle>
-                            </DialogHeader>
+                        <ModernDialogLayout
+                            title={viewUser.name}
+                            footer={
+                                <>
+                                    {canUpdateUser && (
+                                        <Button
+                                            onClick={() => {
+                                                setViewUser(null);
+                                                setUserFormModal(viewUser);
+                                            }}
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                                    <Button variant="outline" onClick={() => setViewUser(null)}>
+                                        Close
+                                    </Button>
+                                </>
+                            }
+                        >
                             <dl className="grid gap-3 text-sm">
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Email</dt>
@@ -412,22 +429,7 @@ export default function Index({
                                     </dd>
                                 </div>
                             </dl>
-                            <DialogFooter>
-                                {canUpdateUser && (
-                                    <Button
-                                        onClick={() => {
-                                            setViewUser(null);
-                                            setUserFormModal(viewUser);
-                                        }}
-                                    >
-                                        Edit
-                                    </Button>
-                                )}
-                                <Button variant="outline" onClick={() => setViewUser(null)}>
-                                    Close
-                                </Button>
-                            </DialogFooter>
-                        </>
+                        </ModernDialogLayout>
                     )}
                 </DialogContent>
             </Dialog>
@@ -451,113 +453,116 @@ export default function Index({
                             className="flex flex-col gap-4"
                         >
                             {({ processing, errors }) => (
-                                <>
-                                    <DialogHeader>
-                                        <DialogTitle>{isCreate ? 'Add user' : 'Edit user'}</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="user-form-name">Name</Label>
-                                        <Input
-                                            id="user-form-name"
-                                            type="text"
-                                            name="name"
-                                            required
-                                            autoComplete="name"
-                                            defaultValue={editUser?.name}
-                                            placeholder="Full name"
-                                        />
-                                        <InputError message={errors.name} />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="user-form-email">Email</Label>
-                                        <Input
-                                            id="user-form-email"
-                                            type="email"
-                                            name="email"
-                                            required
-                                            autoComplete="email"
-                                            defaultValue={editUser?.email}
-                                            placeholder="email@example.com"
-                                        />
-                                        <InputError message={errors.email} />
-                                    </div>
-                                    {isCreate || showPasswordInEdit ? (
+                                <ModernDialogLayout
+                                    title={isCreate ? 'Add user' : 'Edit user'}
+                                    footer={
                                         <>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="user-form-password">Password</Label>
-                                                <Input
-                                                    id="user-form-password"
-                                                    type="password"
-                                                    name="password"
-                                                    required={isCreate}
-                                                    autoComplete="new-password"
-                                                    placeholder={isCreate ? 'Password' : 'Leave blank to keep current'}
-                                                />
-                                                <InputError message={errors.password} />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="user-form-password_confirmation">
-                                                    Confirm password
-                                                </Label>
-                                                <Input
-                                                    id="user-form-password_confirmation"
-                                                    type="password"
-                                                    name="password_confirmation"
-                                                    required={isCreate}
-                                                    autoComplete="new-password"
-                                                    placeholder={isCreate ? 'Confirm password' : 'Leave blank to keep current'}
-                                                />
-                                                <InputError message={errors.password_confirmation} />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div>
+                                            <Button type="submit" disabled={processing}>
+                                                {processing
+                                                    ? isCreate
+                                                        ? 'Creating…'
+                                                        : 'Saving…'
+                                                    : isCreate
+                                                        ? 'Create user'
+                                                        : 'Save changes'}
+                                            </Button>
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                size="sm"
-                                                onClick={() => setShowPasswordInEdit(true)}
+                                                onClick={() => setUserFormModal(null)}
                                             >
-                                                Change password
+                                                Cancel
                                             </Button>
+                                        </>
+                                    }
+                                >
+                                    <div className="flex flex-col gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user-form-name">Name</Label>
+                                            <Input
+                                                id="user-form-name"
+                                                type="text"
+                                                name="name"
+                                                required
+                                                autoComplete="name"
+                                                defaultValue={editUser?.name}
+                                                placeholder="Full name"
+                                            />
+                                            <InputError message={errors.name} />
                                         </div>
-                                    )}
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="user-form-role">Role</Label>
-                                        <select
-                                            id="user-form-role"
-                                            name="role"
-                                            defaultValue={editUser?.roles?.[0]?.name ?? ''}
-                                            className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                        >
-                                            <option value="">No role</option>
-                                            {roles.map((name) => (
-                                                <option key={name} value={name}>
-                                                    {name.charAt(0).toUpperCase() + name.slice(1)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <InputError message={errors.role} />
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user-form-email">Email</Label>
+                                            <Input
+                                                id="user-form-email"
+                                                type="email"
+                                                name="email"
+                                                required
+                                                autoComplete="email"
+                                                defaultValue={editUser?.email}
+                                                placeholder="email@example.com"
+                                            />
+                                            <InputError message={errors.email} />
+                                        </div>
+                                        {isCreate || showPasswordInEdit ? (
+                                            <>
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="user-form-password">Password</Label>
+                                                    <Input
+                                                        id="user-form-password"
+                                                        type="password"
+                                                        name="password"
+                                                        required={isCreate}
+                                                        autoComplete="new-password"
+                                                        placeholder={isCreate ? 'Password' : 'Leave blank to keep current'}
+                                                    />
+                                                    <InputError message={errors.password} />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="user-form-password_confirmation">
+                                                        Confirm password
+                                                    </Label>
+                                                    <Input
+                                                        id="user-form-password_confirmation"
+                                                        type="password"
+                                                        name="password_confirmation"
+                                                        required={isCreate}
+                                                        autoComplete="new-password"
+                                                        placeholder={isCreate ? 'Confirm password' : 'Leave blank to keep current'}
+                                                    />
+                                                    <InputError message={errors.password_confirmation} />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setShowPasswordInEdit(true)}
+                                                >
+                                                    Change password
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="user-form-role">Role</Label>
+                                            <select
+                                                id="user-form-role"
+                                                name="role"
+                                                defaultValue={editUser?.roles?.[0]?.name ?? ''}
+                                                className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            >
+                                                <option value="">No role</option>
+                                                {roles.map((name) => (
+                                                    <option key={name} value={name}>
+                                                        {name.charAt(0).toUpperCase() + name.slice(1)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError message={errors.role} />
+                                        </div>
                                     </div>
-                                    <DialogFooter>
-                                        <Button type="submit" disabled={processing}>
-                                            {processing
-                                                ? isCreate
-                                                    ? 'Creating…'
-                                                    : 'Saving…'
-                                                : isCreate
-                                                    ? 'Create user'
-                                                    : 'Save changes'}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setUserFormModal(null)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </DialogFooter>
-                                </>
+                                </ModernDialogLayout>
                             )}
                         </Form>
                     )}

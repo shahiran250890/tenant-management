@@ -12,3 +12,6 @@ export type AuthLayoutProps = {
     title?: string;
     description?: string;
 };
+
+export type { ModernPageLayoutProps } from '@/components/modern-page-layout';
+export type { ModernDialogLayoutProps } from '@/components/modern-dialog-layout';
