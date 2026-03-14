@@ -1,19 +1,18 @@
 <?php
 
-test('registration screen can be rendered', function () {
-    $response = $this->get(route('register'));
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+uses(TestCase::class);
+
+test('login page does not offer registration when registration is disabled', function () {
+    /** @var TestCase $this */
+    $response = $this->get(route('login'));
 
     $response->assertOk();
-});
-
-test('new users can register', function () {
-    $response = $this->post(route('register.store'), [
-        'name' => 'Test User',
-        'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-    ]);
-
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('auth/login')
+        ->has('canResetPassword')
+        ->missing('canRegister')
+    );
 });

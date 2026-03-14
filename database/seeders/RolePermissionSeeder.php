@@ -19,31 +19,47 @@ class RolePermissionSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // create permissions
-        Permission::create(['name' => 'add user']);
-        Permission::create(['name' => 'edit user']);
+        Permission::create(['name' => 'create user']);
+        Permission::create(['name' => 'update user']);
         Permission::create(['name' => 'delete user']);
         Permission::create(['name' => 'view user']);
-        Permission::create(['name' => 'add tenant']);
-        Permission::create(['name' => 'edit tenant']);
+        Permission::create(['name' => 'create tenant']);
+        Permission::create(['name' => 'update tenant']);
         Permission::create(['name' => 'delete tenant']);
         Permission::create(['name' => 'view tenant']);
+        Permission::create(['name' => 'create role']);
+        Permission::create(['name' => 'update role']);
+        Permission::create(['name' => 'delete role']);
+        Permission::create(['name' => 'view role']);
+        Permission::create(['name' => 'create permission']);
+        Permission::create(['name' => 'update permission']);
+        Permission::create(['name' => 'delete permission']);
+        Permission::create(['name' => 'view permission']);
 
         // create roles and assign existing permissions
         $role1 = Role::create(['name' => 'superadmin']);
-        $role1->givePermissionTo('add user');
-        $role1->givePermissionTo('edit user');
+        $role1->givePermissionTo('create permission');
+        $role1->givePermissionTo('update permission');
+        $role1->givePermissionTo('delete permission');
+        $role1->givePermissionTo('view permission');
+        $role1->givePermissionTo('create role');
+        $role1->givePermissionTo('update role');
+        $role1->givePermissionTo('delete role');
+        $role1->givePermissionTo('view role');
+        $role1->givePermissionTo('create user');
+        $role1->givePermissionTo('update user');
         $role1->givePermissionTo('delete user');
         $role1->givePermissionTo('view user');
-        $role1->givePermissionTo('add tenant');
-        $role1->givePermissionTo('edit tenant');
+        $role1->givePermissionTo('create tenant');
+        $role1->givePermissionTo('update tenant');
         $role1->givePermissionTo('delete tenant');
         $role1->givePermissionTo('view tenant');
 
         $role2 = Role::create(['name' => 'admin']);
-        $role2->givePermissionTo('add user');
+        $role2->givePermissionTo('create user');
         $role2->givePermissionTo('view user');
-        $role2->givePermissionTo('add tenant');
-        $role2->givePermissionTo('edit tenant');
+        $role2->givePermissionTo('create tenant');
+        $role2->givePermissionTo('update tenant');
         $role2->givePermissionTo('view tenant');
 
         // create demo users

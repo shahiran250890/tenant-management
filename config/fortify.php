@@ -144,7 +144,7 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Registration disabled: only superadmin/admin add users via Users management
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

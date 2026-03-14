@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Users;
 
+use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Users\UserRequest;
 use App\Models\User;
@@ -13,6 +14,18 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    use HasResourcePermission;
+
+    public function __construct()
+    {
+        $this->registerResourcePermissionMiddleware();
+    }
+
+    protected function resourcePermissionName(): string
+    {
+        return 'user';
+    }
+
     public function index(Request $request): Response
     {
         $users = User::with('roles')->get();
@@ -22,10 +35,7 @@ class UserController extends Controller
             'users' => $users,
             'roles' => $roles,
             'canAddUser' => auth()->user()->can('add user'),
-            'canEditUser' => auth()->user()->can('edit user'),
-            'canDeleteUser' => auth()->user()->can('delete user'),
-            'canViewUser' => auth()->user()->can('view user'),
-            'openModal' => $request->query('modal'),
+            ...$this->resourcePermissionProps(),
             'openModalUserId' => $request->query('user_id') ? (int) $request->query('user_id') : null,
         ]);
     }

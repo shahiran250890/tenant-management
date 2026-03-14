@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantRequest;
 use App\Models\Tenant;
@@ -13,16 +14,25 @@ use Inertia\Response;
 
 class TenantManagementController extends Controller
 {
+    use HasResourcePermission;
+
+    public function __construct()
+    {
+        $this->registerResourcePermissionMiddleware();
+    }
+
+    protected function resourcePermissionName(): string
+    {
+        return 'tenant';
+    }
+
     public function index(Request $request): Response
     {
         $tenants = Tenant::all();
 
         return Inertia::render('tenants/index', [
             'tenants' => $tenants,
-            'canAddTenant' => auth()->user()->can('add tenant'),
-            'canEditTenant' => auth()->user()->can('edit tenant'),
-            'canDeleteTenant' => auth()->user()->can('delete tenant'),
-            'canViewTenant' => auth()->user()->can('view tenant'),
+            ...$this->resourcePermissionProps(),
             'openModal' => $request->query('modal'),
             'openModalTenantId' => $request->query('tenant_id') ? (int) $request->query('tenant_id') : null,
         ]);

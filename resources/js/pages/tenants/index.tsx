@@ -45,8 +45,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 /** Inertia page props passed from TenantManagementController::index. */
 type Props = {
     tenants: Tenant[];
-    canAddTenant: boolean;
-    canEditTenant: boolean;
+    canCreateTenant: boolean;
+    canUpdateTenant: boolean;
     canDeleteTenant: boolean;
     canViewTenant: boolean;
     openModal?: string | null;
@@ -64,8 +64,8 @@ type Flash = {
 
 export default function Tenants({
     tenants,
-    canAddTenant,
-    canEditTenant,
+    canCreateTenant,
+    canUpdateTenant,
     canDeleteTenant,
     canViewTenant,
     openModal,
@@ -151,7 +151,7 @@ export default function Tenants({
                         className="max-w-md"
                         aria-label="Filter tenants by name"
                     />
-                    {canAddTenant && (
+                    {canCreateTenant && (
                         <Button onClick={() => setTenantFormModal('create')}>
                             <Plus className="size-4" />
                             New tenant
@@ -210,7 +210,7 @@ export default function Tenants({
                                             {tenant.is_active ? 'Active' : 'Inactive'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            {(canViewTenant || canEditTenant || canDeleteTenant) && (
+                                            {(canViewTenant || canUpdateTenant || canDeleteTenant) && (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
@@ -229,7 +229,7 @@ export default function Tenants({
                                                                 View
                                                             </DropdownMenuItem>
                                                         )}
-                                                        {canEditTenant && (
+                                                        {canUpdateTenant && (
                                                             <DropdownMenuItem onSelect={() => setTenantFormModal(tenant)}>
                                                                 <Pencil className="size-4" />
                                                                 Edit
@@ -350,7 +350,7 @@ export default function Tenants({
                                 </div>
                             </dl>
                             <DialogFooter>
-                                {canEditTenant && (
+                                {canUpdateTenant && (
                                     <Button
                                         onClick={() => {
                                             setViewTenant(null);

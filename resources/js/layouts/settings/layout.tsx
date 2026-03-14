@@ -32,6 +32,16 @@ const sidebarNavItems: NavItem[] = [
         href: editAppearance(),
         icon: null,
     },
+    {
+        title: 'Roles',
+        href: '/settings/roles',
+        icon: null,
+    },
+    {
+        title: 'Permissions',
+        href: '/settings/permissions',
+        icon: null,
+    },
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {

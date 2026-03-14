@@ -9,7 +9,11 @@ class TenantRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('add tenant') ?? false;
+        $isUpdate = $this->route('tenant');
+
+        return $isUpdate
+            ? ($this->user()?->can('update tenant') ?? false)
+            : ($this->user()?->can('create tenant') ?? false);
     }
 
     /**

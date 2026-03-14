@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests\Users;
 
-use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+
 class UserRequest extends FormRequest
 {
     /**
@@ -15,8 +16,8 @@ class UserRequest extends FormRequest
         $isUpdate = $this->route('user');
 
         return $isUpdate
-            ? ($this->user()?->can('edit user') ?? false)
-            : ($this->user()?->can('add user') ?? false);
+            ? ($this->user()?->can('update user') ?? false)
+            : ($this->user()?->can('create user') ?? false);
     }
 
     /**

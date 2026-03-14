@@ -54,8 +54,8 @@ type UserWithRoles = User & { roles?: Array<{ name: string }> };
 type Props = {
     users: UserWithRoles[];
     roles: string[];
-    canAddUser: boolean;
-    canEditUser: boolean;
+    canCreateUser: boolean;
+    canUpdateUser: boolean;
     canDeleteUser: boolean;
     canViewUser: boolean;
     openModal?: string | null;
@@ -74,8 +74,8 @@ type Flash = {
 export default function Index({
     users,
     roles,
-    canAddUser,
-    canEditUser,
+    canCreateUser,
+    canUpdateUser,
     canDeleteUser,
     canViewUser,
     openModal,
@@ -225,7 +225,7 @@ export default function Index({
                             )}
                         </SelectContent>
                     </Select>
-                    {canAddUser && (
+                    {canCreateUser && (
                         <Button onClick={() => setUserFormModal('create')}>
                             <UserPlus className="size-4" />
                             Add user
@@ -295,7 +295,7 @@ export default function Index({
                                         </td>
                                         {/* Action dropdown: View / Edit / Delete, gated by canViewUser, canEditUser, canDeleteUser */}
                                         <td className="px-4 py-3">
-                                            {(canViewUser || canEditUser || canDeleteUser) && (
+                                            {(canViewUser || canUpdateUser || canDeleteUser) && (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
@@ -316,7 +316,7 @@ export default function Index({
                                                                 View
                                                             </DropdownMenuItem>
                                                         )}
-                                                        {canEditUser && (
+                                                        {canUpdateUser && (
                                                             <DropdownMenuItem
                                                                 onSelect={() => setUserFormModal(user)}
                                                             >
@@ -413,7 +413,7 @@ export default function Index({
                                 </div>
                             </dl>
                             <DialogFooter>
-                                {canEditUser && (
+                                {canUpdateUser && (
                                     <Button
                                         onClick={() => {
                                             setViewUser(null);
