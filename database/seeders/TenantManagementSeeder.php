@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Domain;
 use App\Models\Tenant;
 use App\Models\TenantDetail;
 use Illuminate\Database\Seeder;
@@ -19,11 +20,10 @@ class TenantManagementSeeder extends Seeder
             'id' => Str::uuid()->toString(),
             'subscription_plan_id' => null,
             'name' => 'Test Tenant',
-            'host' => null,
-            'storage_domain' => null,
+            'storage_domain' => 'sample_storage',
             'database_name' => 'tenant_test',
             'database_username' => 'tenant_user',
-            'database_password' => 'secret',
+            'database_password' => 'tenant_password',
             'database_host' => '127.0.0.1',
             'database_port' => 3306,
             'is_active' => 1,
@@ -44,6 +44,12 @@ class TenantManagementSeeder extends Seeder
             'postal_state' => 'Wilayah Persekutuan',
             'postal_zip' => '50000',
             'postal_country' => 'Malaysia',
+        ])->save();
+
+        $domain = new Domain;
+        $domain->forceFill([
+            'tenant_id' => $tenant->id,
+            'domain' => 'sample_vet.test',
         ])->save();
     }
 }

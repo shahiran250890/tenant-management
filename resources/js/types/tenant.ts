@@ -1,9 +1,16 @@
+/** Domain shape from server (App\Models\Domain). */
+export type TenantDomain = {
+    id: number;
+    domain: string;
+};
+
 /** Tenant shape from server (App\Models\Tenant). */
 export type Tenant = {
     id: string;
     subscription_plan_id: string;
     name: string;
-    host: string;
+    host: string | null;
+    domains?: TenantDomain[];
     storage_domain: string;
     database_name: string;
     database_username: string;

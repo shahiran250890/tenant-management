@@ -70,11 +70,19 @@ export default function Tenants({
     const { flash } = usePage().props as { flash?: Flash };
     const [tenantFormModal, setTenantFormModal] = useState<'create' | Tenant | null>(null);
     const [isActive, setIsActive] = useState(true);
+    const [hosts, setHosts] = useState<string[]>(['']);
 
-    // Sync isActive when modal opens (create vs edit).
+    // Sync isActive and hosts when modal opens (create vs edit).
     useEffect(() => {
-        if (tenantFormModal === 'create') setIsActive(true);
-        else if (tenantFormModal !== null) setIsActive(tenantFormModal.is_active);
+        if (tenantFormModal === 'create') {
+            setIsActive(true);
+            setHosts(['']);
+        } else if (tenantFormModal !== null) {
+            setIsActive(tenantFormModal.is_active);
+            const domainValues =
+                tenantFormModal.domains?.map((d) => d.domain).filter(Boolean) ?? [];
+            setHosts(domainValues.length > 0 ? domainValues : ['']);
+        }
     }, [tenantFormModal]);
 
     // Open modal from URL or flash (e.g. after redirect or validation error). Don't re-open on error so form stays closed.
@@ -205,7 +213,9 @@ export default function Tenants({
                                             {tenant.name}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
-                                            {tenant.host}
+                                            {tenant.domains?.length
+                                                ? tenant.domains.map((d) => d.domain).join(', ')
+                                                : tenant.host ?? '—'}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
                                             {tenant.is_active ? 'Active' : 'Inactive'}
@@ -324,8 +334,12 @@ export default function Tenants({
                         >
                             <dl className="grid gap-3 text-sm">
                                 <div>
-                                    <dt className="font-medium text-muted-foreground">Host</dt>
-                                    <dd className="mt-0.5">{viewTenant.host || '—'}</dd>
+                                    <dt className="font-medium text-muted-foreground">Hosts</dt>
+                                    <dd className="mt-0.5">
+                                        {viewTenant.domains?.length
+                                            ? viewTenant.domains.map((d) => d.domain).join(', ')
+                                            : viewTenant.host || '—'}
+                                    </dd>
                                 </div>
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Storage domain</dt>
@@ -429,17 +443,59 @@ export default function Tenants({
                                             <InputError message={errors.name} />
                                         </div>
                                         <div className="grid gap-2">
-                                            <Label htmlFor="user-form-host" required>Host</Label>
-                                            <Input
-                                                id="user-form-host"
-                                                type="text"
-                                                name="host"
-                                                required
-                                                autoComplete="host"
-                                                defaultValue={editTenant?.host}
-                                                placeholder="test.example.com"
+                                            <div className="flex items-center justify-between">
+                                                <Label>Hosts</Label>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setHosts((prev) => [...prev, ''])}
+                                                >
+                                                    <Plus className="mr-1 size-3.5" />
+                                                    Add host
+                                                </Button>
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                {hosts.map((host, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="flex gap-2 items-center"
+                                                    >
+                                                        <Input
+                                                            type="text"
+                                                            name={`hosts[${i}]`}
+                                                            autoComplete="off"
+                                                            defaultValue={host}
+                                                            placeholder="example.com"
+                                                            className="flex-1"
+                                                        />
+                                                        {hosts.length > 1 && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="shrink-0 size-9"
+                                                                aria-label="Remove host"
+                                                                onClick={() =>
+                                                                    setHosts((prev) =>
+                                                                        prev.filter((_, j) => j !== i)
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="size-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <InputError
+                                                message={
+                                                    errors.hosts ??
+                                                    Object.entries(errors).find(([k]) =>
+                                                        k.startsWith('hosts.')
+                                                    )?.[1]
+                                                }
                                             />
-                                            <InputError message={errors.host} />
                                         </div>
                                         <div className="grid gap-2">
                                             <Label htmlFor="user-form-storage-domain" required>Storage Domain</Label>

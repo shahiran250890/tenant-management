@@ -4,8 +4,12 @@ use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Str;
+use Tests\TestCase;
+
+uses(TestCase::class);
 
 beforeEach(function () {
+    /** @var TestCase $this */
     $this->seed(RolePermissionSeeder::class);
 });
 
@@ -22,12 +26,22 @@ function createTenant(array $overrides = []): Tenant
     ], $overrides));
 }
 
+function createTenantWithDomain(string $domain = 'existing.test'): Tenant
+{
+    $tenant = createTenant();
+    $tenant->domains()->create(['domain' => $domain]);
+
+    return $tenant;
+}
+
 test('guests are redirected to login when visiting tenants index', function () {
+    /** @var TestCase $this */
     $response = $this->get(route('tenants.index'));
     $response->assertRedirect(route('login'));
 });
 
 test('authenticated user without view tenant is redirected to access denied', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -36,6 +50,7 @@ test('authenticated user without view tenant is redirected to access denied', fu
 });
 
 test('authenticated user with view tenant can visit tenants index', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant');
     $this->actingAs($user);
@@ -45,31 +60,35 @@ test('authenticated user with view tenant can visit tenants index', function () 
 });
 
 test('authenticated user with create tenant permission can create a tenant', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
     $this->actingAs($user);
 
     $response = $this->post(route('tenants.store'), [
         'name' => 'Acme Corp',
-        'host' => 'acme.test',
+        'hosts' => ['acme.test', 'www.acme.test'],
         'storage_domain' => 'acme-storage',
         'is_active' => true,
     ]);
 
     $response->assertSessionHasNoErrors()->assertRedirect(route('tenants.index'));
 
-    expect(Tenant::where('name', 'Acme Corp')->exists())->toBeTrue();
+    $tenant = Tenant::where('name', 'Acme Corp')->first();
+    expect($tenant)->not->toBeNull();
+    expect($tenant->domains()->pluck('domain')->all())->toEqual(['acme.test', 'www.acme.test']);
 });
 
 test('authenticated user with update tenant permission can update a tenant', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'update tenant');
-    $tenant = createTenant(['name' => 'Old Name']);
+    $tenant = createTenantWithDomain('old.test');
     $this->actingAs($user);
 
     $response = $this->put(route('tenants.update', $tenant), [
         'name' => 'Updated Tenant Name',
-        'host' => 'updated.test',
+        'hosts' => ['updated.test', 'app.updated.test'],
         'storage_domain' => 'updated-storage',
         'is_active' => false,
     ]);
@@ -77,12 +96,16 @@ test('authenticated user with update tenant permission can update a tenant', fun
     $response->assertSessionHasNoErrors()->assertRedirect(route('tenants.index'));
 
     $tenant->refresh();
+    $tenant->load('domains');
     expect($tenant->name)->toBe('Updated Tenant Name');
-    expect($tenant->host)->toBe('updated.test');
+    expect($tenant->domains()->pluck('domain')->all())->toContain('updated.test');
+    expect($tenant->domains()->pluck('domain')->all())->toContain('app.updated.test');
+    expect($tenant->domains()->count())->toBe(2);
     expect($tenant->is_active)->toBe(0);
 });
 
 test('authenticated user with delete tenant permission can delete a tenant', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'delete tenant');
     $tenant = createTenant();
@@ -97,13 +120,14 @@ test('authenticated user with delete tenant permission can delete a tenant', fun
 });
 
 test('tenant name is required when storing', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
     $this->actingAs($user);
 
     $response = $this->post(route('tenants.store'), [
         'name' => '',
-        'host' => null,
+        'hosts' => [],
         'storage_domain' => null,
         'is_active' => true,
     ]);
@@ -112,20 +136,55 @@ test('tenant name is required when storing', function () {
 });
 
 test('tenant is_active is required when storing', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
     $this->actingAs($user);
 
     $response = $this->post(route('tenants.store'), [
         'name' => 'New Tenant',
-        'host' => null,
+        'hosts' => [],
         'storage_domain' => null,
     ]);
 
     $response->assertSessionHasErrors('is_active');
 });
 
+test('host must be a valid domain with at least one dot when provided', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'create tenant');
+    $this->actingAs($user);
+
+    $response = $this->post(route('tenants.store'), [
+        'name' => 'Vet Tenant',
+        'hosts' => ['veterinar'],
+        'storage_domain' => 'vet-storage',
+        'is_active' => true,
+    ]);
+
+    $response->assertSessionHasErrors('hosts.0');
+});
+
+test('host must be unique across tenants', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'create tenant');
+    createTenantWithDomain('taken.test');
+    $this->actingAs($user);
+
+    $response = $this->post(route('tenants.store'), [
+        'name' => 'Other Tenant',
+        'hosts' => ['taken.test'],
+        'storage_domain' => 'other-storage',
+        'is_active' => true,
+    ]);
+
+    $response->assertSessionHasErrors('hosts.0');
+});
+
 test('authenticated user with view tenant can visit tenant show page', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant');
     $tenant = createTenant();

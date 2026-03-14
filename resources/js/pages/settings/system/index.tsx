@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Shield, KeyRound } from 'lucide-react';
+import { Building2, KeyRound, Shield } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
@@ -25,6 +25,12 @@ const systemLinks = [
         href: `${SYSTEM_SETTINGS_BASE}/permissions`,
         icon: KeyRound,
     },
+    {
+        title: 'Tenant module',
+        description: 'Manage tenants, hosts and tenant-specific settings',
+        href: '/tenants',
+        icon: Building2,
+    },
 ];
 
 export default function SystemSettingsIndex() {
@@ -39,7 +45,7 @@ export default function SystemSettingsIndex() {
                             System settings
                         </h2>
                         <p className="mt-0.5 text-sm text-muted-foreground">
-                            Configure roles and permissions for your application.
+                            Configure roles, permissions and tenant module for cross-tenant application.
                         </p>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">

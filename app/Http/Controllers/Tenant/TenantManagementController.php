@@ -28,7 +28,7 @@ class TenantManagementController extends Controller
 
     public function index(Request $request): Response
     {
-        $tenants = Tenant::all();
+        $tenants = Tenant::with('domains')->get();
 
         return Inertia::render('tenants/index', [
             'tenants' => $tenants,
@@ -47,17 +47,25 @@ class TenantManagementController extends Controller
     {
         $validated = $request->safe()->only([
             'name',
-            'host',
+            'hosts',
             'storage_domain',
             'is_active',
         ]);
+        $hosts = $validated['hosts'] ?? [];
+        unset($validated['hosts']);
+        $hosts = array_values(array_filter(array_map('strval', $hosts)));
         try {
             $validated['database_name'] = $validated['name'].'_'.Str::random(10);
             $validated['database_username'] = 'root';
             $validated['database_password'] = '';
             $validated['database_host'] = '127.0.0.1';
             $validated['database_port'] = 3306;
-            Tenant::create($validated);
+            $tenant = Tenant::create($validated);
+            foreach ($hosts as $host) {
+                if ($host !== '') {
+                    $tenant->domains()->create(['domain' => $host]);
+                }
+            }
         } catch (\Throwable $e) {
             report($e);
 
@@ -75,6 +83,8 @@ class TenantManagementController extends Controller
 
     public function show(Tenant $tenant): Response
     {
+        $tenant->load('domains');
+
         return Inertia::render('tenants/show', [
             'tenant' => $tenant,
         ]);
@@ -89,13 +99,27 @@ class TenantManagementController extends Controller
     {
         $validated = $request->safe()->only([
             'name',
-            'host',
+            'hosts',
             'storage_domain',
             'is_active',
         ]);
+        $hosts = $validated['hosts'] ?? [];
+        unset($validated['hosts']);
+        $hosts = array_values(array_filter(array_map('strval', $hosts)));
 
         try {
             $tenant->update($validated);
+
+            // Sync domains: keep only domains in the submitted list; add new; remove missing.
+            $existing = $tenant->domains()->pluck('domain')->all();
+            foreach (array_diff($existing, $hosts) as $domain) {
+                $tenant->domains()->where('domain', $domain)->delete();
+            }
+            foreach (array_diff($hosts, $existing) as $host) {
+                if ($host !== '') {
+                    $tenant->domains()->create(['domain' => $host]);
+                }
+            }
         } catch (\Throwable $e) {
             report($e);
 
