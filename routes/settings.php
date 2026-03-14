@@ -27,6 +27,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
+        ->middleware('confirm-two-factor-password')
         ->name('two-factor.show');
 
     Route::get('settings/system', SystemSettingController::class)->name('settings.system.index');
