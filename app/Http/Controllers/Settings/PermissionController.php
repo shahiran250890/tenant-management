@@ -29,7 +29,7 @@ class PermissionController extends Controller
     {
         $permissions = Permission::orderBy('name')->get();
 
-        return Inertia::render('settings/permissions/index', [
+        return Inertia::render('settings/system/permissions/index', [
             'permissions' => $permissions,
             ...$this->resourcePermissionProps(),
             'openModal' => $request->query('modal'),
@@ -39,7 +39,7 @@ class PermissionController extends Controller
 
     public function create(): RedirectResponse
     {
-        return redirect()->route('settings.permissions.index', ['modal' => 'create']);
+        return redirect()->route('settings.system.permissions.index', ['modal' => 'create']);
     }
 
     public function store(PermissionRequest $request): RedirectResponse
@@ -55,20 +55,20 @@ class PermissionController extends Controller
             report($e);
 
             return redirect()
-                ->route('settings.permissions.index', ['modal' => 'create'])
+                ->route('settings.system.permissions.index', ['modal' => 'create'])
                 ->with('error', 'Failed to create permission. Please try again.')
                 ->with('error_key', now()->timestamp);
         }
 
         return redirect()
-            ->route('settings.permissions.index')
+            ->route('settings.system.permissions.index')
             ->with('success', 'Permission created successfully.')
             ->with('success_key', now()->timestamp);
     }
 
     public function show(Permission $permission): RedirectResponse
     {
-        return redirect()->route('settings.permissions.index', [
+        return redirect()->route('settings.system.permissions.index', [
             'modal' => 'view',
             'permission_id' => $permission->id,
         ]);
@@ -76,7 +76,7 @@ class PermissionController extends Controller
 
     public function edit(Permission $permission): RedirectResponse
     {
-        return redirect()->route('settings.permissions.index', [
+        return redirect()->route('settings.system.permissions.index', [
             'modal' => 'edit',
             'permission_id' => $permission->id,
         ]);
@@ -90,7 +90,7 @@ class PermissionController extends Controller
             report($e);
 
             return redirect()
-                ->route('settings.permissions.index', [
+                ->route('settings.system.permissions.index', [
                     'modal' => 'edit',
                     'permission_id' => $permission->id,
                 ])
@@ -99,7 +99,7 @@ class PermissionController extends Controller
         }
 
         return redirect()
-            ->route('settings.permissions.index')
+            ->route('settings.system.permissions.index')
             ->with('success', 'Permission updated successfully.')
             ->with('success_key', now()->timestamp);
     }
@@ -114,13 +114,13 @@ class PermissionController extends Controller
             report($e);
 
             return redirect()
-                ->route('settings.permissions.index')
+                ->route('settings.system.permissions.index')
                 ->with('error', 'Failed to delete permission. Please try again.')
                 ->with('error_key', now()->timestamp);
         }
 
         return redirect()
-            ->route('settings.permissions.index')
+            ->route('settings.system.permissions.index')
             ->with('success', 'Permission deleted successfully.')
             ->with('success_key', now()->timestamp);
     }

@@ -8,13 +8,8 @@ import FlashMessageDialog from '@/components/flash-message-dialog';
 import Heading from '@/components/heading';
 import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -25,6 +20,8 @@ import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const SYSTEM_PERMISSIONS_BASE = '/settings/system/permissions';
+
 /** Spatie Permission from API (id, name, guard_name, ...). */
 type Permission = {
     id: number;
@@ -34,7 +31,8 @@ type Permission = {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Settings', href: edit() },
-    { title: 'Permissions', href: '/settings/permissions' },
+    { title: 'System settings', href: '/settings/system' },
+    { title: 'Permissions', href: SYSTEM_PERMISSIONS_BASE },
 ];
 
 type Props = {
@@ -63,7 +61,7 @@ function permissionDisplayName(name: string): string {
         .join(' ');
 }
 
-export default function SettingsPermissionsIndex({
+export default function SettingsSystemPermissionsIndex({
     permissions,
     canCreatePermission,
     canUpdatePermission,
@@ -73,12 +71,9 @@ export default function SettingsPermissionsIndex({
     openModalPermissionId,
 }: Props) {
     const { flash } = usePage().props as { flash?: Flash };
-    const [permissionFormModal, setPermissionFormModal] = useState<
-        'create' | Permission | null
-    >(null);
+    const [permissionFormModal, setPermissionFormModal] = useState<'create' | Permission | null>(null);
     const [viewPermission, setViewPermission] = useState<Permission | null>(null);
-    const [deleteConfirmPermission, setDeleteConfirmPermission] =
-        useState<Permission | null>(null);
+    const [deleteConfirmPermission, setDeleteConfirmPermission] = useState<Permission | null>(null);
     const [successDismissed, setSuccessDismissed] = useState(false);
     const [errorDismissed, setErrorDismissed] = useState(false);
 
@@ -106,9 +101,7 @@ export default function SettingsPermissionsIndex({
 
     const isCreate = permissionFormModal === 'create';
     const editPermission =
-        permissionFormModal !== null && permissionFormModal !== 'create'
-            ? permissionFormModal
-            : null;
+        permissionFormModal !== null && permissionFormModal !== 'create' ? permissionFormModal : null;
 
     useEffect(() => {
         if (flash?.success) setSuccessDismissed(false);
@@ -144,27 +137,19 @@ export default function SettingsPermissionsIndex({
                             description="Manage application permissions assigned to roles"
                         />
                         {canCreatePermission && (
-                            <Button
-                                onClick={() => setPermissionFormModal('create')}
-                            >
+                            <Button onClick={() => setPermissionFormModal('create')}>
                                 <Plus className="size-4" />
                                 Add permission
                             </Button>
                         )}
                     </div>
-                    <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                    <div className="rounded-xl border border-border/60 dark:border-border">
                         <table className="w-full table-auto text-left text-sm">
                             <thead>
-                                <tr className="border-b border-sidebar-border/70 bg-muted/40 dark:border-sidebar-border dark:bg-muted/20">
-                                    <th className="w-12 px-4 py-3 font-medium text-muted-foreground">
-                                        #
-                                    </th>
-                                    <th className="px-4 py-3 font-medium text-muted-foreground">
-                                        Name
-                                    </th>
-                                    <th className="w-12 px-4 py-3 font-medium text-muted-foreground">
-                                        Action
-                                    </th>
+                                <tr className="border-b border-border/60 bg-muted/40 dark:border-border dark:bg-muted/20">
+                                    <th className="w-12 px-4 py-3 font-medium text-muted-foreground">#</th>
+                                    <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
+                                    <th className="w-12 px-4 py-3 font-medium text-muted-foreground">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -181,24 +166,20 @@ export default function SettingsPermissionsIndex({
                                     permissions.map((permission, index) => (
                                         <tr
                                             key={permission.id}
-                                            className="border-b border-sidebar-border/50 transition-colors last:border-0 hover:bg-muted/30 dark:border-sidebar-border/50 dark:hover:bg-muted/10"
+                                            className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30 dark:border-border/50 dark:hover:bg-muted/10"
                                         >
                                             <td className="px-4 py-3 tabular-nums text-muted-foreground">
                                                 {index + 1}
                                             </td>
                                             <td className="px-4 py-3 font-medium">
-                                                {permissionDisplayName(
-                                                    permission.name,
-                                                )}
+                                                {permissionDisplayName(permission.name)}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {(canViewPermission ||
                                                     canUpdatePermission ||
                                                     canDeletePermission) && (
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger
-                                                            asChild
-                                                        >
+                                                        <DropdownMenuTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
@@ -212,9 +193,7 @@ export default function SettingsPermissionsIndex({
                                                             {canViewPermission && (
                                                                 <DropdownMenuItem
                                                                     onSelect={() =>
-                                                                        setViewPermission(
-                                                                            permission,
-                                                                        )
+                                                                        setViewPermission(permission)
                                                                     }
                                                                 >
                                                                     <Eye className="size-4" />
@@ -224,9 +203,7 @@ export default function SettingsPermissionsIndex({
                                                             {canUpdatePermission && (
                                                                 <DropdownMenuItem
                                                                     onSelect={() =>
-                                                                        setPermissionFormModal(
-                                                                            permission,
-                                                                        )
+                                                                        setPermissionFormModal(permission)
                                                                     }
                                                                 >
                                                                     <Pencil className="size-4" />
@@ -237,9 +214,7 @@ export default function SettingsPermissionsIndex({
                                                                 <DropdownMenuItem
                                                                     variant="destructive"
                                                                     onSelect={() =>
-                                                                        setDeleteConfirmPermission(
-                                                                            permission,
-                                                                        )
+                                                                        setDeleteConfirmPermission(permission)
                                                                     }
                                                                 >
                                                                     <Trash2 className="size-4" />
@@ -269,147 +244,129 @@ export default function SettingsPermissionsIndex({
 
             <Dialog
                 open={!!deleteConfirmPermission}
-                onOpenChange={(open) =>
-                    !open && setDeleteConfirmPermission(null)
-                }
+                onOpenChange={(open) => !open && setDeleteConfirmPermission(null)}
             >
                 <DialogContent>
                     {deleteConfirmPermission && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    Delete permission
-                                </DialogTitle>
-                            </DialogHeader>
-                            <p className="text-sm text-muted-foreground">
-                                Are you sure you want to delete{' '}
-                                <strong>
-                                    {permissionDisplayName(
-                                        deleteConfirmPermission.name,
-                                    )}
-                                </strong>
-                                ? This cannot be undone.
-                            </p>
-                            <DialogFooter>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => {
-                                        router.delete(
-                                            `/settings/permissions/${deleteConfirmPermission.id}`,
-                                        );
-                                        setDeleteConfirmPermission(null);
-                                    }}
-                                >
-                                    Delete
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        setDeleteConfirmPermission(null)
-                                    }
-                                >
-                                    Cancel
-                                </Button>
-                            </DialogFooter>
-                        </>
+                        <ModernDialogLayout
+                            title="Delete permission"
+                            description={
+                                <>
+                                    Are you sure you want to delete{' '}
+                                    <strong>
+                                        {permissionDisplayName(deleteConfirmPermission.name)}
+                                    </strong>
+                                    ? This cannot be undone.
+                                </>
+                            }
+                            footer={
+                                <>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            router.delete(
+                                                `${SYSTEM_PERMISSIONS_BASE}/${deleteConfirmPermission.id}`,
+                                            );
+                                            setDeleteConfirmPermission(null);
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setDeleteConfirmPermission(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </>
+                            }
+                        />
                     )}
                 </DialogContent>
             </Dialog>
 
-            <Dialog
-                open={!!viewPermission}
-                onOpenChange={(open) => !open && setViewPermission(null)}
-            >
-                <DialogContent>
+            <Dialog open={!!viewPermission} onOpenChange={(open) => !open && setViewPermission(null)}>
+                <DialogContent className="sm:max-w-md">
                     {viewPermission && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    {permissionDisplayName(viewPermission.name)}
-                                </DialogTitle>
-                            </DialogHeader>
+                        <ModernDialogLayout
+                            title={permissionDisplayName(viewPermission.name)}
+                            footer={
+                                <>
+                                    {canUpdatePermission && (
+                                        <Button
+                                            onClick={() => {
+                                                setViewPermission(null);
+                                                setPermissionFormModal(viewPermission);
+                                            }}
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                                    <Button variant="outline" onClick={() => setViewPermission(null)}>
+                                        Close
+                                    </Button>
+                                </>
+                            }
+                        >
                             <dl className="grid gap-3 text-sm">
                                 <div>
-                                    <dt className="font-medium text-muted-foreground">
-                                        Name
-                                    </dt>
+                                    <dt className="font-medium text-muted-foreground">Name</dt>
                                     <dd className="mt-0.5">
-                                        {permissionDisplayName(
-                                            viewPermission.name,
-                                        )}
+                                        {permissionDisplayName(viewPermission.name)}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="font-medium text-muted-foreground">
-                                        Guard
-                                    </dt>
-                                    <dd className="mt-0.5">
-                                        {viewPermission.guard_name}
-                                    </dd>
+                                    <dt className="font-medium text-muted-foreground">Guard</dt>
+                                    <dd className="mt-0.5">{viewPermission.guard_name}</dd>
                                 </div>
                             </dl>
-                            <DialogFooter>
-                                {canUpdatePermission && (
-                                    <Button
-                                        onClick={() => {
-                                            setViewPermission(null);
-                                            setPermissionFormModal(
-                                                viewPermission,
-                                            );
-                                        }}
-                                    >
-                                        Edit
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setViewPermission(null)}
-                                >
-                                    Close
-                                </Button>
-                            </DialogFooter>
-                        </>
+                        </ModernDialogLayout>
                     )}
                 </DialogContent>
             </Dialog>
 
             <Dialog
                 open={permissionFormModal !== null}
-                onOpenChange={(open) =>
-                    !open && setPermissionFormModal(null)
-                }
+                onOpenChange={(open) => !open && setPermissionFormModal(null)}
             >
                 <DialogContent className="sm:max-w-md">
                     {permissionFormModal !== null && (
                         <Form
                             action={
                                 isCreate
-                                    ? '/settings/permissions'
-                                    : `/settings/permissions/${editPermission!.id}`
+                                    ? SYSTEM_PERMISSIONS_BASE
+                                    : `${SYSTEM_PERMISSIONS_BASE}/${editPermission!.id}`
                             }
                             method="post"
                             className="flex flex-col gap-4"
                         >
                             {({ processing, errors }) => (
-                                <>
-                                    {!isCreate && (
-                                        <input
-                                            type="hidden"
-                                            name="_method"
-                                            value="PUT"
-                                        />
-                                    )}
-                                    <DialogHeader>
-                                        <DialogTitle>
-                                            {isCreate
-                                                ? 'Add permission'
-                                                : 'Edit permission'}
-                                        </DialogTitle>
-                                    </DialogHeader>
+                                <ModernDialogLayout
+                                    title={isCreate ? 'Add permission' : 'Edit permission'}
+                                    footer={
+                                        <>
+                                            <Button type="submit" disabled={processing}>
+                                                {processing
+                                                    ? isCreate
+                                                        ? 'Creating…'
+                                                        : 'Saving…'
+                                                    : isCreate
+                                                        ? 'Create permission'
+                                                        : 'Save changes'}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => setPermissionFormModal(null)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </>
+                                    }
+                                >
+                                    {!isCreate && <input type="hidden" name="_method" value="PUT" />}
                                     <div className="grid gap-2">
-                                        <Label htmlFor="permission-form-name">
-                                            Name
-                                        </Label>
+                                        <Label htmlFor="permission-form-name">Name</Label>
                                         <Input
                                             id="permission-form-name"
                                             type="text"
@@ -419,34 +376,9 @@ export default function SettingsPermissionsIndex({
                                             defaultValue={editPermission?.name}
                                             placeholder="e.g. view reports"
                                         />
-                                        <InputError
-                                            message={errors.name}
-                                        />
+                                        <InputError message={errors.name} />
                                     </div>
-                                    <DialogFooter>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {processing
-                                                ? isCreate
-                                                    ? 'Creating…'
-                                                    : 'Saving…'
-                                                : isCreate
-                                                    ? 'Create permission'
-                                                    : 'Save changes'}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() =>
-                                                setPermissionFormModal(null)
-                                            }
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </DialogFooter>
-                                </>
+                                </ModernDialogLayout>
                             )}
                         </Form>
                     )}

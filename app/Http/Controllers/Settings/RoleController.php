@@ -31,7 +31,7 @@ class RoleController extends Controller
         $roles = Role::with('permissions')->orderBy('name')->get();
         $allPermissions = Permission::orderBy('name')->get();
 
-        return Inertia::render('settings/roles/index', [
+        return Inertia::render('settings/system/roles/index', [
             'roles' => $roles,
             'permissions' => $allPermissions,
             ...$this->resourcePermissionProps(),
@@ -42,7 +42,7 @@ class RoleController extends Controller
 
     public function create(): RedirectResponse
     {
-        return redirect()->route('settings.roles.index', ['modal' => 'create']);
+        return redirect()->route('settings.system.roles.index', ['modal' => 'create']);
     }
 
     public function store(RoleRequest $request): RedirectResponse
@@ -59,25 +59,25 @@ class RoleController extends Controller
             report($e);
 
             return redirect()
-                ->route('settings.roles.index', ['modal' => 'create'])
+                ->route('settings.system.roles.index', ['modal' => 'create'])
                 ->with('error', 'Failed to create role. Please try again.')
                 ->with('error_key', now()->timestamp);
         }
 
         return redirect()
-            ->route('settings.roles.index')
+            ->route('settings.system.roles.index')
             ->with('success', 'Role created successfully.')
             ->with('success_key', now()->timestamp);
     }
 
     public function show(Role $role): RedirectResponse
     {
-        return redirect()->route('settings.roles.index', ['modal' => 'view', 'role_id' => $role->id]);
+        return redirect()->route('settings.system.roles.index', ['modal' => 'view', 'role_id' => $role->id]);
     }
 
     public function edit(Role $role): RedirectResponse
     {
-        return redirect()->route('settings.roles.index', ['modal' => 'edit', 'role_id' => $role->id]);
+        return redirect()->route('settings.system.roles.index', ['modal' => 'edit', 'role_id' => $role->id]);
     }
 
     public function update(RoleRequest $request, Role $role): RedirectResponse
@@ -89,13 +89,13 @@ class RoleController extends Controller
             report($e);
 
             return redirect()
-                ->route('settings.roles.index', ['modal' => 'edit', 'role_id' => $role->id])
+                ->route('settings.system.roles.index', ['modal' => 'edit', 'role_id' => $role->id])
                 ->with('error', 'Failed to update role. Please try again.')
                 ->with('error_key', now()->timestamp);
         }
 
         return redirect()
-            ->route('settings.roles.index')
+            ->route('settings.system.roles.index')
             ->with('success', 'Role updated successfully.')
             ->with('success_key', now()->timestamp);
     }
@@ -110,13 +110,13 @@ class RoleController extends Controller
             report($e);
 
             return redirect()
-                ->route('settings.roles.index')
+                ->route('settings.system.roles.index')
                 ->with('error', 'Failed to delete role. Please try again.')
                 ->with('error_key', now()->timestamp);
         }
 
         return redirect()
-            ->route('settings.roles.index')
+            ->route('settings.system.roles.index')
             ->with('success', 'Role deleted successfully.')
             ->with('success_key', now()->timestamp);
     }

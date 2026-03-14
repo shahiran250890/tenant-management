@@ -42,9 +42,9 @@ class RoleRequest extends FormRequest
 
     protected function failedValidation(Validator $validator): void
     {
-        if ($this->routeIs('settings.roles.store')) {
+        if ($this->routeIs('settings.system.roles.store')) {
             session()->flash('modal', 'create');
-        } elseif ($this->routeIs('settings.roles.update')) {
+        } elseif ($this->routeIs('settings.system.roles.update')) {
             session()->flash('modal', 'edit');
             $role = $this->route('role');
             if ($role) {

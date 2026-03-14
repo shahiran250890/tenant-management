@@ -40,9 +40,9 @@ class PermissionRequest extends FormRequest
 
     protected function failedValidation(Validator $validator): void
     {
-        if ($this->routeIs('settings.permissions.store')) {
+        if ($this->routeIs('settings.system.permissions.store')) {
             session()->flash('modal', 'create');
-        } elseif ($this->routeIs('settings.permissions.update')) {
+        } elseif ($this->routeIs('settings.system.permissions.update')) {
             session()->flash('modal', 'edit');
             $permission = $this->route('permission');
             if ($permission) {
