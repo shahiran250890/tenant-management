@@ -45,6 +45,7 @@ test('authenticated user with create user permission can create a user', functio
         'email' => 'newuser@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasNoErrors()->assertRedirect(route('users.index'));
@@ -63,6 +64,7 @@ test('authenticated user with create user permission can assign role when creati
         'email' => 'staff@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'is_enabled' => true,
         'role' => 'admin',
     ]);
 
@@ -117,6 +119,7 @@ test('user name is required when storing', function () {
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('name');
@@ -133,6 +136,7 @@ test('user email is required when storing', function () {
         'email' => '',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('email');
@@ -150,6 +154,7 @@ test('user email must be unique when storing', function () {
         'email' => 'existing@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('email');
@@ -166,6 +171,7 @@ test('user password is required when storing', function () {
         'email' => 'new@example.com',
         'password' => '',
         'password_confirmation' => '',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('password');
@@ -182,6 +188,7 @@ test('user password must be confirmed when storing', function () {
         'email' => 'new@example.com',
         'password' => 'password',
         'password_confirmation' => 'different',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('password');
