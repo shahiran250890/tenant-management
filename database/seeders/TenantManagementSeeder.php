@@ -20,10 +20,10 @@ class TenantManagementSeeder extends Seeder
             'id' => Str::uuid()->toString(),
             'subscription_plan_id' => null,
             'name' => 'Test Tenant',
-            'storage_domain' => 'sample_storage',
-            'database_name' => 'tenant_test',
-            'database_username' => 'tenant_user',
-            'database_password' => 'tenant_password',
+            'storage_domain' => 'vetmanagementsystem',
+            'database_name' => 'vetmanagementsystem',
+            'database_username' => 'root',
+            'database_password' => '',
             'database_host' => '127.0.0.1',
             'database_port' => 3306,
             'is_enabled' => true,
@@ -49,7 +49,7 @@ class TenantManagementSeeder extends Seeder
         $domain = new Domain;
         $domain->forceFill([
             'tenant_id' => $tenant->id,
-            'domain' => 'sample_vet.test',
+            'domain' => 'vetmanagementsystem.test',
         ])->save();
     }
 }
