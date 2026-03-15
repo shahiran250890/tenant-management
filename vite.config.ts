@@ -19,7 +19,13 @@ export default defineConfig({
         tailwindcss(),
         wayfinder({
             formVariants: true,
-            command: `"${process.env.HOME}/Library/Application Support/Herd/bin/php84" artisan wayfinder:generate --with-form`,
+            // Use system `php` in CI (e.g. GitHub Actions); use Herd's PHP locally when not in CI
+            command:
+                process.env.PHP_BINARY ??
+                (process.env.CI
+                    ? 'php'
+                    : `"${process.env.HOME}/Library/Application Support/Herd/bin/php84"`) +
+                    ' artisan wayfinder:generate --with-form',
         }),
     ],
     esbuild: {
