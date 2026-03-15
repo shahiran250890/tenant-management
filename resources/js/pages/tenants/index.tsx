@@ -129,6 +129,9 @@ export default function Tenants({
         } else if (modal === 'edit' && tenantId) {
             const t = tenants.find((x) => x.id === tenantId);
             if (t) setTenantFormModal(t);
+        } else if (modal === 'view' && tenantId) {
+            const t = tenants.find((x) => x.id === tenantId);
+            if (t) setViewTenant(t);
         } else if (modal === 'modules' && tenantId) {
             const t = tenants.find((x) => x.id === tenantId);
             if (t) setModulesModalTenant(t);

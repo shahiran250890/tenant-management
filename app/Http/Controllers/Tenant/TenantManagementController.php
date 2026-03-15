@@ -85,13 +85,9 @@ class TenantManagementController extends Controller
             ->with('success_key', now()->timestamp);
     }
 
-    public function show(Tenant $tenant): Response
+    public function show(Tenant $tenant): RedirectResponse
     {
-        $tenant->load('domains');
-
-        return Inertia::render('tenants/show', [
-            'tenant' => $tenant,
-        ]);
+        return redirect()->route('tenants.index', ['modal' => 'view', 'tenant_id' => $tenant->id]);
     }
 
     public function edit(Tenant $tenant): RedirectResponse

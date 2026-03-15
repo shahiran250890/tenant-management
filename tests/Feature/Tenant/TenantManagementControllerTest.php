@@ -209,5 +209,5 @@ test('authenticated user with view tenant can visit tenant show page', function 
 
     $response = $this->get(route('tenants.show', $tenant));
 
-    $response->assertOk();
+    $response->assertRedirect(route('tenants.index', ['modal' => 'view', 'tenant_id' => $tenant->id]));
 });
