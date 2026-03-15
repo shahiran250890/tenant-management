@@ -126,6 +126,10 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 | Roles/Perms | Spatie Laravel Permission            |
 | Routes (FE) | Laravel Wayfinder                    |
 
+## Documentation
+
+- **[Custom components](docs/COMPONENTS.md)** — Props, usage, and examples for app-specific React components (layouts, forms, dialogs, nav). Use when building pages or when Cursor needs a component reference.
+
 ## Development
 
 - **Tests**: `php artisan test` or `php artisan test --compact --filter=TestName`
