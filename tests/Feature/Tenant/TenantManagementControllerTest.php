@@ -104,6 +104,25 @@ test('authenticated user with update tenant permission can update a tenant', fun
     expect($tenant->is_enabled)->toBeFalse();
 });
 
+test('authenticated user with update tenant can toggle is_enabled via PATCH enabled', function () {
+    /** @var TestCase $this */
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'update tenant');
+    $tenant = createTenantWithDomain('app.test');
+    $this->actingAs($user);
+
+    $response = $this->patchJson(route('tenants.enabled.update', $tenant), ['is_enabled' => false]);
+
+    $response->assertOk()->assertJson(['is_enabled' => false]);
+    $tenant->refresh();
+    expect($tenant->is_enabled)->toBeFalse();
+
+    $response2 = $this->patchJson(route('tenants.enabled.update', $tenant), ['is_enabled' => true]);
+    $response2->assertOk()->assertJson(['is_enabled' => true]);
+    $tenant->refresh();
+    expect($tenant->is_enabled)->toBeTrue();
+});
+
 test('authenticated user with delete tenant permission can delete a tenant', function () {
     /** @var TestCase $this */
     $user = User::factory()->create();

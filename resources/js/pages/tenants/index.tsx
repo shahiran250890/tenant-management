@@ -1,6 +1,12 @@
+/**
+ * Tenants index page – list, create, edit, delete tenants and manage per-tenant modules.
+ * Uses Inertia + React; tenant status (is_enabled) can be toggled via AJAX with SweetAlert feedback.
+ */
 import { FormatDateTime } from '@/components/format-date-time';
 import { ModernPageLayout } from '@/components/modern-page-layout';
 import { Form, Head, router, usePage } from '@inertiajs/react';
+import axios from 'axios';
+import Swal from 'sweetalert2';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, Tenant } from '@/types';
@@ -28,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import tenantsRoutes from '@/routes/tenants';
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
@@ -73,6 +80,47 @@ function isEnabledForTenant(tenant: TenantWithModules, moduleId: number): boolea
     return value === true || value === 1;
 }
 
+/** Read CSRF token from cookie for axios requests (Laravel XSRF-TOKEN). */
+function getCsrfToken(): string {
+    const match = document.cookie.match(/\bXSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1].trim()) : '';
+}
+
+/** Toggle tenant is_enabled via PATCH /tenants/{id}/enabled; show SweetAlert then reload. */
+async function toggleTenantEnabled(
+    tenant: TenantWithModules,
+    canUpdate: boolean,
+    togglingId: string | null,
+    setTogglingId: (id: string | null) => void,
+): Promise<void> {
+    if (!canUpdate || togglingId !== null) return;
+    const isEnabled = !tenant.is_enabled;
+    setTogglingId(tenant.id);
+    try {
+        await axios.patch(`/tenants/${tenant.id}/enabled`, { is_enabled: isEnabled }, {
+            withCredentials: true,
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': getCsrfToken(),
+            },
+        });
+        await Swal.fire({
+            title: isEnabled ? 'Tenant is enabled' : 'Tenant is disabled',
+            icon: isEnabled ? 'success' : 'info',
+            iconColor: isEnabled ? '#16a34a' : '#6b7280',
+            timer: 2000,
+            timerProgressBar: true,
+            showConfirmButton: false,
+            background: isEnabled ? undefined : '#f8fafc',
+            color: isEnabled ? undefined : '#475569',
+        });
+        router.reload();
+    } finally {
+        setTogglingId(null);
+    }
+}
+
 type Flash = {
     modal?: string;
     modal_tenant_id?: number;
@@ -93,12 +141,15 @@ export default function Tenants({
     openModalTenantId,
 }: Props) {
     const { flash } = usePage().props as { flash?: Flash };
+
+    // Modals: create/edit tenant form, manage modules, view tenant, delete confirm.
     const [tenantFormModal, setTenantFormModal] = useState<'create' | TenantWithModules | null>(null);
     const [modulesModalTenant, setModulesModalTenant] = useState<TenantWithModules | null>(null);
     const [isEnabled, setIsEnabled] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
+    const [togglingTenantId, setTogglingTenantId] = useState<string | null>(null);
 
-    // Sync isEnabled and hosts when modal opens (create vs edit).
+    // Sync form state when create vs edit modal opens (isEnabled, hosts from tenant).
     useEffect(() => {
         if (tenantFormModal === 'create') {
             setIsEnabled(true);
@@ -164,6 +215,8 @@ export default function Tenants({
     const [deleteConfirmTenant, setDeleteConfirmTenant] = useState<Tenant | null>(null);
     const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
     const [nameFilter, setNameFilter] = useState('');
+
+    // Filter tenants by name (client-side).
     const filteredTenants = useMemo(() => {
         const q = nameFilter.trim().toLowerCase();
         if (!q) return tenants;
@@ -197,6 +250,7 @@ export default function Tenants({
                     </div>
                 }
                 contentClassName="min-h-0">
+                {/* Tenants table: #, Name, Host, Status (clickable when can update), Action menu. */}
                 <div className="rounded-xl border border-border/60 dark:border-border">
                     <table className="w-full table-auto text-left text-sm">
                         <thead>
@@ -248,7 +302,51 @@ export default function Tenants({
                                                 : tenant.host ?? '—'}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
-                                            {tenant.is_enabled ? 'Enabled' : 'Disabled'}
+                                            {/* Status: green = enabled, red = disabled; click toggles via AJAX. */}
+                                            {canUpdateTenant ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className={`h-auto px-2 py-1 font-normal ${
+                                                        togglingTenantId === tenant.id
+                                                            ? 'text-muted-foreground'
+                                                            : tenant.is_enabled
+                                                              ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
+                                                              : 'text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300'
+                                                    }`}
+                                                    disabled={togglingTenantId === tenant.id}
+                                                    onClick={() =>
+                                                        toggleTenantEnabled(
+                                                            tenant,
+                                                            canUpdateTenant,
+                                                            togglingTenantId,
+                                                            setTogglingTenantId,
+                                                        )
+                                                    }
+                                                    aria-label={
+                                                        tenant.is_enabled
+                                                            ? 'Disable tenant (click to toggle)'
+                                                            : 'Enable tenant (click to toggle)'
+                                                    }
+                                                >
+                                                    {togglingTenantId === tenant.id
+                                                        ? '…'
+                                                        : tenant.is_enabled
+                                                          ? 'Enabled'
+                                                          : 'Disabled'}
+                                                </Button>
+                                            ) : (
+                                                <span
+                                                    className={
+                                                        tenant.is_enabled
+                                                            ? 'text-green-600 dark:text-green-400'
+                                                            : 'text-red-600 dark:text-red-400'
+                                                    }
+                                                >
+                                                    {tenant.is_enabled ? 'Enabled' : 'Disabled'}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">
                                             {(canViewTenant || canUpdateTenant || canDeleteTenant) && (
@@ -303,6 +401,7 @@ export default function Tenants({
                 </div>
             </ModernPageLayout>
 
+            {/* Global flash for create/update/delete success or error. */}
             <FlashMessageDialog
                 open={!!showFlashMessage}
                 variant={isSuccess ? 'success' : 'error'}
@@ -344,7 +443,7 @@ export default function Tenants({
                 </DialogContent>
             </Dialog>
 
-            {/* View tenant modal */}
+            {/* View tenant modal – read-only details (hosts, storage, DB, status, timestamps). */}
             <Dialog open={!!viewTenant} onOpenChange={(open) => !open && setViewTenant(null)}>
                 <DialogContent className="sm:max-w-md">
                     {viewTenant && (
@@ -403,7 +502,9 @@ export default function Tenants({
                                 </div>
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Status</dt>
-                                    <dd className="mt-0.5">{viewTenant.is_enabled ? 'Enabled' : 'Disabled'}</dd>
+                                    <dd className="mt-0.5">
+                                        {viewTenant.is_enabled ? 'Enabled' : 'Disabled'}
+                                    </dd>
                                 </div>
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Created at</dt>
@@ -423,7 +524,7 @@ export default function Tenants({
                 </DialogContent>
             </Dialog>
 
-            {/* Create / Edit tenant modal (shared) */}
+            {/* Create / Edit tenant modal – shared form (name, hosts, storage_domain, is_enabled). */}
             <Dialog
                 open={tenantFormModal !== null}
                 onOpenChange={(open) => {
@@ -564,7 +665,7 @@ export default function Tenants({
                 </DialogContent>
             </Dialog>
 
-            {/* Manage modules dialog */}
+            {/* Manage modules dialog – enable/disable modules for one tenant (pivot is_enabled). */}
             <Dialog open={!!modulesModalTenant} onOpenChange={(open) => !open && setModulesModalTenant(null)}>
                 <DialogContent className="sm:max-w-md">
                     {modulesModalTenant && (

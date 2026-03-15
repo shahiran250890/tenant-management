@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('users', UserController::class);
 
     Route::put('tenants/{tenant}/modules', [TenantModuleController::class, 'update'])->name('tenants.modules.update');
+    Route::patch('tenants/{tenant}/enabled', [TenantManagementController::class, 'updateEnabled'])->name('tenants.enabled.update');
 
     Route::resource('tenants', TenantManagementController::class);
 });

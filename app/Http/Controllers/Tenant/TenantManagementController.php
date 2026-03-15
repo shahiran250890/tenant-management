@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantRequest;
 use App\Models\Module;
 use App\Models\Tenant;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -96,6 +97,19 @@ class TenantManagementController extends Controller
     public function edit(Tenant $tenant): RedirectResponse
     {
         return redirect()->route('tenants.index', ['modal' => 'edit', 'tenant_id' => $tenant->id]);
+    }
+
+    public function updateEnabled(Request $request, Tenant $tenant): JsonResponse
+    {
+        $this->authorize('update tenant');
+
+        $validated = $request->validate([
+            'is_enabled' => ['required', 'boolean'],
+        ]);
+
+        $tenant->update(['is_enabled' => $validated['is_enabled']]);
+
+        return response()->json(['is_enabled' => $tenant->is_enabled]);
     }
 
     public function update(TenantRequest $request, Tenant $tenant): RedirectResponse
