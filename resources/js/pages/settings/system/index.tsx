@@ -2,8 +2,8 @@ import { Head, Link } from '@inertiajs/react';
 import { Building2, KeyRound, Layers, Shield } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { edit } from '@/routes/profile';
 import type { BreadcrumbItem } from '@/types';
+import { edit } from '@/routes/profile';
 
 const SYSTEM_SETTINGS_BASE = '/settings/system';
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Label } from '@/components/ui/label';
 import InputError from '@/components/input-error';
+import { Label } from '@/components/ui/label';
 
 type StatusToggleProps = {
     /** Label shown above the toggle (e.g. "Status"). */

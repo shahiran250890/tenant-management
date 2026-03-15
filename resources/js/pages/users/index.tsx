@@ -2,30 +2,26 @@
  * Users index page – list, create, edit, delete users and manage roles.
  * Status (is_enabled) can be toggled via EnableStatusToggle (AJAX + SweetAlert).
  */
-import { Form, Head, Link, router, usePage } from '@inertiajs/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FormatDateTime } from '@/components/format-date-time';
-import { ModernPageLayout } from '@/components/modern-page-layout';
-import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
-import usersRoutes from '@/routes/users';
-import type { BreadcrumbItem, User } from '@/types';
-import FlashMessageDialog from '@/components/flash-message-dialog';
-import EnableStatusToggle from '@/components/enable-status-toggle';
+import { Form, Head, router, usePage } from '@inertiajs/react';
 import { EllipsisVertical, Eye, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import EnableStatusToggle from '@/components/enable-status-toggle';
+import FlashMessageDialog from '@/components/flash-message-dialog';
+import { FormatDateTime } from '@/components/format-date-time';
+import InputError from '@/components/input-error';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
+import { ModernPageLayout } from '@/components/modern-page-layout';
+import StatusToggle from '@/components/status-toggle';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import StatusToggle from '@/components/status-toggle';
 import {
     Select,
     SelectContent,
@@ -33,6 +29,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { dashboard } from '@/routes';
+import type { BreadcrumbItem, User } from '@/types';
+import usersRoutes from '@/routes/users';
 
 /** Sentinel value for "All roles" in the role filter (Radix Select does not support empty string). */
 const ROLE_FILTER_ALL = '__all__';
@@ -102,15 +102,17 @@ export default function Index({
         if (flash?.error) return;
         const modal = openModal ?? flash?.modal;
         const userId = openModalUserId ?? flash?.modal_user_id;
-        if (modal === 'create') {
-            setUserFormModal('create');
-        } else if (modal === 'edit' && userId) {
-            const u = users.find((x) => x.id === userId);
-            if (u) setUserFormModal(u);
-        } else if (modal === 'view' && userId) {
-            const u = users.find((x) => x.id === userId);
-            if (u) setViewUser(u);
-        }
+        queueMicrotask(() => {
+            if (modal === 'create') {
+                setUserFormModal('create');
+            } else if (modal === 'edit' && userId) {
+                const u = users.find((x) => x.id === userId);
+                if (u) setUserFormModal(u);
+            } else if (modal === 'view' && userId) {
+                const u = users.find((x) => x.id === userId);
+                if (u) setViewUser(u);
+            }
+        });
     }, [openModal, openModalUserId, flash?.modal, flash?.modal_user_id, flash?.error, users]);
 
     const isCreate = userFormModal === 'create';
@@ -121,11 +123,13 @@ export default function Index({
     const [showPasswordInEdit, setShowPasswordInEdit] = useState(false);
 
     useEffect(() => {
-        if (userFormModal === 'create') {
-            setIsUserEnabled(true);
-        } else if (editUser) {
-            setIsUserEnabled(editUser.is_enabled);
-        }
+        queueMicrotask(() => {
+            if (userFormModal === 'create') {
+                setIsUserEnabled(true);
+            } else if (editUser) {
+                setIsUserEnabled(editUser.is_enabled);
+            }
+        });
     }, [userFormModal, editUser]);
     const [successDismissed, setSuccessDismissed] = useState(false);
     const [errorDismissed, setErrorDismissed] = useState(false);
@@ -137,17 +141,19 @@ export default function Index({
 
     // Reset success dismissed when a new success is flashed.
     useEffect(() => {
-        if (flash?.success) setSuccessDismissed(false);
+        if (flash?.success) queueMicrotask(() => setSuccessDismissed(false));
     }, [flash?.success, flash?.success_key]);
     // Reset error dismissed when a new error is flashed.
     useEffect(() => {
-        if (flash?.error) setErrorDismissed(false);
+        if (flash?.error) queueMicrotask(() => setErrorDismissed(false));
     }, [flash?.error, flash?.error_key]);
     // Close form modal and reset password UI on success or error redirect.
     useEffect(() => {
         if (flash?.success || flash?.error) {
-            setUserFormModal(null);
-            setShowPasswordInEdit(false);
+            queueMicrotask(() => {
+                setUserFormModal(null);
+                setShowPasswordInEdit(false);
+            });
         }
     }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
 

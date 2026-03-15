@@ -1,24 +1,24 @@
 import { Form, Head, router, usePage } from '@inertiajs/react';
+import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
-import { edit } from '@/routes/profile';
-import type { BreadcrumbItem } from '@/types';
 import FlashMessageDialog from '@/components/flash-message-dialog';
 import Heading from '@/components/heading';
-import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import InputError from '@/components/input-error';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import SettingsLayout from '@/layouts/settings/layout';
+import type { BreadcrumbItem } from '@/types';
+import { edit } from '@/routes/profile';
 
 const SYSTEM_PERMISSIONS_BASE = '/settings/system/permissions';
 
@@ -81,15 +81,17 @@ export default function SettingsSystemPermissionsIndex({
         if (flash?.error) return;
         const modal = openModal ?? flash?.modal;
         const permissionId = openModalPermissionId ?? flash?.modal_permission_id;
-        if (modal === 'create') {
-            setPermissionFormModal('create');
-        } else if (modal === 'edit' && permissionId) {
-            const p = permissions.find((x) => x.id === permissionId);
-            if (p) setPermissionFormModal(p);
-        } else if (modal === 'view' && permissionId) {
-            const p = permissions.find((x) => x.id === permissionId);
-            if (p) setViewPermission(p);
-        }
+        queueMicrotask(() => {
+            if (modal === 'create') {
+                setPermissionFormModal('create');
+            } else if (modal === 'edit' && permissionId) {
+                const p = permissions.find((x) => x.id === permissionId);
+                if (p) setPermissionFormModal(p);
+            } else if (modal === 'view' && permissionId) {
+                const p = permissions.find((x) => x.id === permissionId);
+                if (p) setViewPermission(p);
+            }
+        });
     }, [
         openModal,
         openModalPermissionId,
@@ -104,13 +106,13 @@ export default function SettingsSystemPermissionsIndex({
         permissionFormModal !== null && permissionFormModal !== 'create' ? permissionFormModal : null;
 
     useEffect(() => {
-        if (flash?.success) setSuccessDismissed(false);
+        if (flash?.success) queueMicrotask(() => setSuccessDismissed(false));
     }, [flash?.success, flash?.success_key]);
     useEffect(() => {
-        if (flash?.error) setErrorDismissed(false);
+        if (flash?.error) queueMicrotask(() => setErrorDismissed(false));
     }, [flash?.error, flash?.error_key]);
     useEffect(() => {
-        if (flash?.success || flash?.error) setPermissionFormModal(null);
+        if (flash?.success || flash?.error) queueMicrotask(() => setPermissionFormModal(null));
     }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
 
     const showSuccess = flash?.success && !successDismissed;

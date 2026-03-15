@@ -3,12 +3,12 @@
  * is_enabled via PATCH to a given URL with axios, then SweetAlert and optional callback.
  * Use on any screen (tenants, modules, etc.) by passing toggleUrl and optional titles.
  */
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
-import axios from 'axios';
 import { router } from '@inertiajs/react';
+import axios from 'axios';
 import { useState } from 'react';
 import Swal from 'sweetalert2';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 /** Read Laravel XSRF-TOKEN from cookie for axios PATCH requests. */
 function getCsrfToken(): string {

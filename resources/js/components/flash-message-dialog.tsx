@@ -1,3 +1,4 @@
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useEffect } from 'react';
 import {
     Dialog,
@@ -5,7 +6,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 type FlashMessageDialogProps = {
     /** Whether the dialog is open. */

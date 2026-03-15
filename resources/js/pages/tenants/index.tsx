@@ -2,36 +2,29 @@
  * Tenants index page – list, create, edit, delete tenants and manage per-tenant modules.
  * Uses Inertia + React; tenant status (is_enabled) can be toggled via AJAX with SweetAlert feedback.
  */
-import { FormatDateTime } from '@/components/format-date-time';
-import { ModernPageLayout } from '@/components/modern-page-layout';
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
-import type { BreadcrumbItem, Tenant } from '@/types';
+import { EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import EnableStatusToggle from '@/components/enable-status-toggle';
+import FlashMessageDialog from '@/components/flash-message-dialog';
+import { FormatDateTime } from '@/components/format-date-time';
+import InputError from '@/components/input-error';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
+import { ModernPageLayout } from '@/components/modern-page-layout';
+import StatusToggle from '@/components/status-toggle';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import FlashMessageDialog from '@/components/flash-message-dialog';
-import { EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ModernDialogLayout } from '@/components/modern-dialog-layout';
-import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import StatusToggle from '@/components/status-toggle';
-import EnableStatusToggle from '@/components/enable-status-toggle';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import AppLayout from '@/layouts/app-layout';
+import { dashboard } from '@/routes';
+import type { BreadcrumbItem, Tenant } from '@/types';
 import tenantsRoutes from '@/routes/tenants';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -103,20 +96,23 @@ export default function Tenants({
     // Modals: create/edit tenant form, manage modules, view tenant, delete confirm.
     const [tenantFormModal, setTenantFormModal] = useState<'create' | TenantWithModules | null>(null);
     const [modulesModalTenant, setModulesModalTenant] = useState<TenantWithModules | null>(null);
+    const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
     const [isEnabled, setIsEnabled] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
 
     // Sync form state when create vs edit modal opens (isEnabled, hosts from tenant).
     useEffect(() => {
-        if (tenantFormModal === 'create') {
-            setIsEnabled(true);
-            setHosts(['']);
-        } else if (tenantFormModal !== null) {
-            setIsEnabled(tenantFormModal.is_enabled);
-            const domainValues =
-                tenantFormModal.domains?.map((d) => d.domain).filter(Boolean) ?? [];
-            setHosts(domainValues.length > 0 ? domainValues : ['']);
-        }
+        queueMicrotask(() => {
+            if (tenantFormModal === 'create') {
+                setIsEnabled(true);
+                setHosts(['']);
+            } else if (tenantFormModal !== null) {
+                setIsEnabled(tenantFormModal.is_enabled);
+                const domainValues =
+                    tenantFormModal.domains?.map((d) => d.domain).filter(Boolean) ?? [];
+                setHosts(domainValues.length > 0 ? domainValues : ['']);
+            }
+        });
     }, [tenantFormModal]);
 
     // Open modal from URL or flash (e.g. after redirect or validation error). Don't re-open on error so form stays closed.
@@ -124,18 +120,20 @@ export default function Tenants({
         if (flash?.error) return;
         const modal = openModal ?? flash?.modal;
         const tenantId = openModalTenantId ?? flash?.modal_tenant_id;
-        if (modal === 'create') {
-            setTenantFormModal('create');
-        } else if (modal === 'edit' && tenantId) {
-            const t = tenants.find((x) => x.id === tenantId);
-            if (t) setTenantFormModal(t);
-        } else if (modal === 'view' && tenantId) {
-            const t = tenants.find((x) => x.id === tenantId);
-            if (t) setViewTenant(t);
-        } else if (modal === 'modules' && tenantId) {
-            const t = tenants.find((x) => x.id === tenantId);
-            if (t) setModulesModalTenant(t);
-        }
+        queueMicrotask(() => {
+            if (modal === 'create') {
+                setTenantFormModal('create');
+            } else if (modal === 'edit' && tenantId) {
+                const t = tenants.find((x) => x.id === tenantId);
+                if (t) setTenantFormModal(t);
+            } else if (modal === 'view' && tenantId) {
+                const t = tenants.find((x) => x.id === tenantId);
+                if (t) setViewTenant(t);
+            } else if (modal === 'modules' && tenantId) {
+                const t = tenants.find((x) => x.id === tenantId);
+                if (t) setModulesModalTenant(t);
+            }
+        });
     }, [openModal, openModalTenantId, flash?.modal, flash?.modal_tenant_id, flash?.error, tenants]);
 
     const isCreate = tenantFormModal === 'create';
@@ -147,19 +145,21 @@ export default function Tenants({
 
     // Reset error dismissed when a new error is flashed (e.g. after another failed update).
     useEffect(() => {
-        if (flash?.error) setErrorDismissed(false);
+        if (flash?.error) queueMicrotask(() => setErrorDismissed(false));
     }, [flash?.error, flash?.error_key]);
 
     // Reset success dismissed when a new success is flashed (e.g. after create/update).
     useEffect(() => {
-        if (flash?.success) setSuccessDismissed(false);
+        if (flash?.success) queueMicrotask(() => setSuccessDismissed(false));
     }, [flash?.success, flash?.success_key]);
 
     // Close form modal after success or error redirect (store/update).
     useEffect(() => {
         if (flash?.success || flash?.error) {
-            setTenantFormModal(null);
-            setModulesModalTenant(null);
+            queueMicrotask(() => {
+                setTenantFormModal(null);
+                setModulesModalTenant(null);
+            });
         }
     }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
 
@@ -173,7 +173,6 @@ export default function Tenants({
     }, []);
 
     const [deleteConfirmTenant, setDeleteConfirmTenant] = useState<Tenant | null>(null);
-    const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
     const [nameFilter, setNameFilter] = useState('');
 
     // Filter tenants by name (client-side).

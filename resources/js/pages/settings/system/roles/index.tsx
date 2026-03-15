@@ -1,24 +1,24 @@
 import { Form, Head, router, usePage } from '@inertiajs/react';
+import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
-import { edit } from '@/routes/profile';
-import type { BreadcrumbItem } from '@/types';
 import FlashMessageDialog from '@/components/flash-message-dialog';
 import Heading from '@/components/heading';
-import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import InputError from '@/components/input-error';
+import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import SettingsLayout from '@/layouts/settings/layout';
+import type { BreadcrumbItem } from '@/types';
+import { edit } from '@/routes/profile';
 
 const SYSTEM_ROLES_BASE = '/settings/system/roles';
 
@@ -95,28 +95,30 @@ export default function SettingsSystemRolesIndex({
         if (flash?.error) return;
         const modal = openModal ?? flash?.modal;
         const roleId = openModalRoleId ?? flash?.modal_role_id;
-        if (modal === 'create') {
-            setRoleFormModal('create');
-        } else if (modal === 'edit' && roleId) {
-            const r = roles.find((x) => x.id === roleId);
-            if (r) setRoleFormModal(r);
-        } else if (modal === 'view' && roleId) {
-            const r = roles.find((x) => x.id === roleId);
-            if (r) setViewRole(r);
-        }
+        queueMicrotask(() => {
+            if (modal === 'create') {
+                setRoleFormModal('create');
+            } else if (modal === 'edit' && roleId) {
+                const r = roles.find((x) => x.id === roleId);
+                if (r) setRoleFormModal(r);
+            } else if (modal === 'view' && roleId) {
+                const r = roles.find((x) => x.id === roleId);
+                if (r) setViewRole(r);
+            }
+        });
     }, [openModal, openModalRoleId, flash?.modal, flash?.modal_role_id, flash?.error, roles]);
 
     const isCreate = roleFormModal === 'create';
     const editRole = roleFormModal !== null && roleFormModal !== 'create' ? roleFormModal : null;
 
     useEffect(() => {
-        if (flash?.success) setSuccessDismissed(false);
+        if (flash?.success) queueMicrotask(() => setSuccessDismissed(false));
     }, [flash?.success, flash?.success_key]);
     useEffect(() => {
-        if (flash?.error) setErrorDismissed(false);
+        if (flash?.error) queueMicrotask(() => setErrorDismissed(false));
     }, [flash?.error, flash?.error_key]);
     useEffect(() => {
-        if (flash?.success || flash?.error) setRoleFormModal(null);
+        if (flash?.success || flash?.error) queueMicrotask(() => setRoleFormModal(null));
     }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
 
     const showSuccess = flash?.success && !successDismissed;
