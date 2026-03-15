@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\ModuleController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\PermissionController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -39,4 +40,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('settings/system/permissions', PermissionController::class)
         ->names('settings.system.permissions')
         ->parameters(['permissions' => 'permission']);
+
+    Route::resource('settings/system/modules', ModuleController::class)
+        ->names('settings.system.modules')
+        ->parameters(['modules' => 'module']);
 });

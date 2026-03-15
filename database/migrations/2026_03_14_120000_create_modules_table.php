@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('key')->unique();
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_enabled')->default(true);
             $table->timestamps();
         });
     }

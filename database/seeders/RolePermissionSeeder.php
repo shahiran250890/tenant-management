@@ -35,6 +35,10 @@ class RolePermissionSeeder extends Seeder
         Permission::create(['name' => 'update permission']);
         Permission::create(['name' => 'delete permission']);
         Permission::create(['name' => 'view permission']);
+        Permission::create(['name' => 'create module']);
+        Permission::create(['name' => 'update module']);
+        Permission::create(['name' => 'delete module']);
+        Permission::create(['name' => 'view module']);
 
         // create roles and assign existing permissions
         $role1 = Role::create(['name' => 'superadmin']);
@@ -54,6 +58,10 @@ class RolePermissionSeeder extends Seeder
         $role1->givePermissionTo('update tenant');
         $role1->givePermissionTo('delete tenant');
         $role1->givePermissionTo('view tenant');
+        $role1->givePermissionTo('create module');
+        $role1->givePermissionTo('update module');
+        $role1->givePermissionTo('delete module');
+        $role1->givePermissionTo('view module');
 
         $role2 = Role::create(['name' => 'admin']);
         $role2->givePermissionTo('create user');

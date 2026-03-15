@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import FlashMessageDialog from '@/components/flash-message-dialog';
-import { EllipsisVertical, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import { EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import InputError from '@/components/input-error';
@@ -38,9 +38,27 @@ const breadcrumbs: BreadcrumbItem[] = [
     }
 ];
 
+/** Tenant with modules (pivot is_enabled per tenant). */
+type TenantWithModules = Tenant & {
+    modules?: Array<{
+        id: number;
+        name: string;
+        key: string;
+        pivot: { is_enabled: boolean };
+    }>;
+};
+
+type Module = {
+    id: number;
+    name: string;
+    key: string;
+    is_enabled: boolean;
+};
+
 /** Inertia page props passed from TenantManagementController::index. */
 type Props = {
-    tenants: Tenant[];
+    tenants: TenantWithModules[];
+    modules: Module[];
     canCreateTenant: boolean;
     canUpdateTenant: boolean;
     canDeleteTenant: boolean;
@@ -48,6 +66,12 @@ type Props = {
     openModal?: string | null;
     openModalTenantId?: string | null;
 };
+
+function isEnabledForTenant(tenant: TenantWithModules, moduleId: number): boolean {
+    const m = tenant.modules?.find((x) => x.id === moduleId);
+    const value = m?.pivot?.is_enabled as boolean | number | undefined;
+    return value === true || value === 1;
+}
 
 type Flash = {
     modal?: string;
@@ -60,6 +84,7 @@ type Flash = {
 
 export default function Tenants({
     tenants,
+    modules,
     canCreateTenant,
     canUpdateTenant,
     canDeleteTenant,
@@ -68,7 +93,8 @@ export default function Tenants({
     openModalTenantId,
 }: Props) {
     const { flash } = usePage().props as { flash?: Flash };
-    const [tenantFormModal, setTenantFormModal] = useState<'create' | Tenant | null>(null);
+    const [tenantFormModal, setTenantFormModal] = useState<'create' | TenantWithModules | null>(null);
+    const [modulesModalTenant, setModulesModalTenant] = useState<TenantWithModules | null>(null);
     const [isActive, setIsActive] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
 
@@ -95,6 +121,9 @@ export default function Tenants({
         } else if (modal === 'edit' && tenantId) {
             const t = tenants.find((x) => x.id === tenantId);
             if (t) setTenantFormModal(t);
+        } else if (modal === 'modules' && tenantId) {
+            const t = tenants.find((x) => x.id === tenantId);
+            if (t) setModulesModalTenant(t);
         }
     }, [openModal, openModalTenantId, flash?.modal, flash?.modal_tenant_id, flash?.error, tenants]);
 
@@ -119,6 +148,7 @@ export default function Tenants({
     useEffect(() => {
         if (flash?.success || flash?.error) {
             setTenantFormModal(null);
+            setModulesModalTenant(null);
         }
     }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
 
@@ -244,6 +274,12 @@ export default function Tenants({
                                                             <DropdownMenuItem onSelect={() => setTenantFormModal(tenant)}>
                                                                 <Pencil className="size-4" />
                                                                 Edit
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canUpdateTenant && (
+                                                            <DropdownMenuItem onSelect={() => setModulesModalTenant(tenant)}>
+                                                                <Layers className="size-4" />
+                                                                Manage modules
                                                             </DropdownMenuItem>
                                                         )}
                                                         {canDeleteTenant && (
@@ -522,6 +558,96 @@ export default function Tenants({
                                     </div>
 
                                 </ModernDialogLayout>
+                            )}
+                        </Form>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Manage modules dialog */}
+            <Dialog open={!!modulesModalTenant} onOpenChange={(open) => !open && setModulesModalTenant(null)}>
+                <DialogContent className="sm:max-w-md">
+                    {modulesModalTenant && (
+                        <Form
+                            key={modulesModalTenant.id}
+                            action={`/tenants/${modulesModalTenant.id}/modules`}
+                            method="post"
+                            className="flex flex-col gap-4"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    <input type="hidden" name="_method" value="PUT" />
+                                    <ModernDialogLayout
+                                        title={`Modules for ${modulesModalTenant.name}`}
+                                        description="Enable or disable modules for this tenant."
+                                        footer={
+                                            <>
+                                                <Button type="submit" disabled={processing}>
+                                                    {processing ? 'Saving…' : 'Save changes'}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setModulesModalTenant(null)}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </>
+                                        }
+                                    >
+                                        <div className="max-h-60 space-y-3 overflow-y-auto">
+                                            {modules.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground">
+                                                    No modules defined. Add modules in System settings
+                                                    first.
+                                                </p>
+                                            ) : (
+                                                modules.map((mod) => (
+                                                    <div
+                                                        key={mod.id}
+                                                        className="flex items-center gap-2 rounded-md border border-border/60 p-2 dark:border-border"
+                                                    >
+                                                        <input
+                                                            type="hidden"
+                                                            name={`modules[${mod.id}][id]`}
+                                                            value={mod.id}
+                                                        />
+                                                        <input
+                                                            type="hidden"
+                                                            name={`modules[${mod.id}][is_enabled]`}
+                                                            value="0"
+                                                        />
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`module-${modulesModalTenant.id}-${mod.id}`}
+                                                            name={`modules[${mod.id}][is_enabled]`}
+                                                            value="1"
+                                                            defaultChecked={isEnabledForTenant(
+                                                                modulesModalTenant,
+                                                                mod.id,
+                                                            )}
+                                                            className="size-4 rounded border-input"
+                                                        />
+                                                        <Label
+                                                            htmlFor={`module-${modulesModalTenant.id}-${mod.id}`}
+                                                            className="flex-1 cursor-pointer font-normal"
+                                                        >
+                                                            {mod.name}
+                                                            <span className="ml-1.5 font-mono text-xs text-muted-foreground">
+                                                                ({mod.key})
+                                                            </span>
+                                                        </Label>
+                                                    </div>
+                                                ))
+                                            )}
+                                            {errors?.modules && (
+                                                <p className="text-sm text-destructive">
+                                                    {errors.modules}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </ModernDialogLayout>
+                                </>
                             )}
                         </Form>
                     )}

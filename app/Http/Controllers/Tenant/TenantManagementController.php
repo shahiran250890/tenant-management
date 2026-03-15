@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tenant;
 use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantRequest;
+use App\Models\Module;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,13 +29,15 @@ class TenantManagementController extends Controller
 
     public function index(Request $request): Response
     {
-        $tenants = Tenant::with('domains')->get();
+        $tenants = Tenant::with(['domains', 'modules'])->orderBy('name')->get();
+        $modules = Module::where('is_enabled', true)->orderBy('name')->get();
 
         return Inertia::render('tenants/index', [
             'tenants' => $tenants,
+            'modules' => $modules,
             ...$this->resourcePermissionProps(),
             'openModal' => $request->query('modal'),
-            'openModalTenantId' => $request->query('tenant_id') ? (int) $request->query('tenant_id') : null,
+            'openModalTenantId' => $request->query('tenant_id'),
         ]);
     }
 
