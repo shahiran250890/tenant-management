@@ -6,8 +6,6 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
-uses(TestCase::class);
-
 beforeEach(function () {
     /** @var TestCase $this */
     $this->seed(RolePermissionSeeder::class);

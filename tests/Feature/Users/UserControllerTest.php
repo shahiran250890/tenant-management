@@ -4,8 +4,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Tests\TestCase;
 
-uses(TestCase::class);
-
 beforeEach(function () {
     /** @var TestCase $this */
     $this->seed(RolePermissionSeeder::class);
