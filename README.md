@@ -91,6 +91,7 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 ### Tenant management
 
 - List, create, edit, and delete tenants
+- View tenant details in a dialog on the index page (show route redirects to index with `modal=view`)
 - Enable/disable tenants
 - Assign modules to tenants (`PUT /tenants/{tenant}/modules`)
 - Tenant details (e.g. database credentials stored encrypted)
@@ -133,7 +134,7 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 
 ## Development
 
-- **Tests**: `php artisan test` or `php artisan test --compact --filter=TestName`
+- **Tests**: `php artisan test` or `php artisan test --compact --filter=TestName`. If the Artisan test command is not available, use `./vendor/bin/pest` (e.g. `./vendor/bin/pest --compact` or `./vendor/bin/pest tests/Feature/Users/UserControllerTest.php`).
 - **Lint PHP**: `vendor/bin/pint --dirty --format agent` or `composer run lint`
 - **Lint/format JS**: `npm run lint`, `npm run format`, `npm run types:check`
 - **CI checks**: `composer run ci:check` (lint, format, types, tests)

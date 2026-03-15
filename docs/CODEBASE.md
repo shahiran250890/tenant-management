@@ -101,7 +101,7 @@ Middleware is configured in `bootstrap/app.php` (no `app/Http/Kernel.php` in Lar
 ## Tests
 
 - **Location**: `tests/`. Pest is used; feature tests typically live in `tests/Feature/`.
-- **Run**: `php artisan test` or `php artisan test --compact --filter=TestName`.
+- **Run**: `php artisan test` or `php artisan test --compact --filter=TestName`. If the Artisan test command is not available (e.g. in some environments), use `./vendor/bin/pest` (e.g. `./vendor/bin/pest --compact` or `./vendor/bin/pest tests/Feature/Users/UserControllerTest.php`).
 - **Convention**: Use factories for models; hit HTTP/Inertia when testing flows.
 
 ---

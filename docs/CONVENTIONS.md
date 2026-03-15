@@ -56,7 +56,7 @@ Naming, patterns, and style so the codebase stays consistent and Cursor/develope
 ## Tests
 
 - **Framework**: Pest. Create tests with `php artisan make:test --pest Name`.
-- **Run**: `php artisan test` or `php artisan test --compact --filter=TestName`.
+- **Run**: `php artisan test` or `php artisan test --compact --filter=TestName`. If the Artisan test command is not available, use `./vendor/bin/pest` (e.g. `./vendor/bin/pest --compact`).
 - **Data**: Use model factories; avoid hardcoding IDs. For feature tests, hit HTTP/Inertia and assert on response or redirect.
 - **Naming**: Descriptive test names; follow existing test file structure (e.g. feature tests in `tests/Feature/`).
 
