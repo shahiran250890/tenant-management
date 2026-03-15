@@ -128,7 +128,8 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 
 ## Documentation
 
-- **[Custom components](docs/COMPONENTS.md)** — Props, usage, and examples for app-specific React components (layouts, forms, dialogs, nav). Use when building pages or when Cursor needs a component reference.
+- **[Documentation index](docs/README.md)** — System docs: architecture, codebase structure, auth & permissions, data models, conventions.
+- **[Custom components](docs/COMPONENTS.md)** — Props, usage, and examples for app-specific React components (layouts, forms, dialogs, nav).
 
 ## Development
 
