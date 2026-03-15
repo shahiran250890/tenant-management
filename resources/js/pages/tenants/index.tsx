@@ -5,8 +5,6 @@
 import { FormatDateTime } from '@/components/format-date-time';
 import { ModernPageLayout } from '@/components/modern-page-layout';
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import axios from 'axios';
-import Swal from 'sweetalert2';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, Tenant } from '@/types';
@@ -25,6 +23,7 @@ import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import StatusToggle from '@/components/status-toggle';
+import EnableStatusToggle from '@/components/enable-status-toggle';
 import {
     Select,
     SelectContent,
@@ -80,47 +79,6 @@ function isEnabledForTenant(tenant: TenantWithModules, moduleId: number): boolea
     return value === true || value === 1;
 }
 
-/** Read CSRF token from cookie for axios requests (Laravel XSRF-TOKEN). */
-function getCsrfToken(): string {
-    const match = document.cookie.match(/\bXSRF-TOKEN=([^;]+)/);
-    return match ? decodeURIComponent(match[1].trim()) : '';
-}
-
-/** Toggle tenant is_enabled via PATCH /tenants/{id}/enabled; show SweetAlert then reload. */
-async function toggleTenantEnabled(
-    tenant: TenantWithModules,
-    canUpdate: boolean,
-    togglingId: string | null,
-    setTogglingId: (id: string | null) => void,
-): Promise<void> {
-    if (!canUpdate || togglingId !== null) return;
-    const isEnabled = !tenant.is_enabled;
-    setTogglingId(tenant.id);
-    try {
-        await axios.patch(`/tenants/${tenant.id}/enabled`, { is_enabled: isEnabled }, {
-            withCredentials: true,
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-XSRF-TOKEN': getCsrfToken(),
-            },
-        });
-        await Swal.fire({
-            title: isEnabled ? 'Tenant is enabled' : 'Tenant is disabled',
-            icon: isEnabled ? 'success' : 'info',
-            iconColor: isEnabled ? '#16a34a' : '#6b7280',
-            timer: 2000,
-            timerProgressBar: true,
-            showConfirmButton: false,
-            background: isEnabled ? undefined : '#f8fafc',
-            color: isEnabled ? undefined : '#475569',
-        });
-        router.reload();
-    } finally {
-        setTogglingId(null);
-    }
-}
-
 type Flash = {
     modal?: string;
     modal_tenant_id?: number;
@@ -147,7 +105,6 @@ export default function Tenants({
     const [modulesModalTenant, setModulesModalTenant] = useState<TenantWithModules | null>(null);
     const [isEnabled, setIsEnabled] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
-    const [togglingTenantId, setTogglingTenantId] = useState<string | null>(null);
 
     // Sync form state when create vs edit modal opens (isEnabled, hosts from tenant).
     useEffect(() => {
@@ -302,51 +259,18 @@ export default function Tenants({
                                                 : tenant.host ?? '—'}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
-                                            {/* Status: green = enabled, red = disabled; click toggles via AJAX. */}
-                                            {canUpdateTenant ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className={`h-auto px-2 py-1 font-normal ${
-                                                        togglingTenantId === tenant.id
-                                                            ? 'text-muted-foreground'
-                                                            : tenant.is_enabled
-                                                              ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300'
-                                                              : 'text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300'
-                                                    }`}
-                                                    disabled={togglingTenantId === tenant.id}
-                                                    onClick={() =>
-                                                        toggleTenantEnabled(
-                                                            tenant,
-                                                            canUpdateTenant,
-                                                            togglingTenantId,
-                                                            setTogglingTenantId,
-                                                        )
-                                                    }
-                                                    aria-label={
-                                                        tenant.is_enabled
-                                                            ? 'Disable tenant (click to toggle)'
-                                                            : 'Enable tenant (click to toggle)'
-                                                    }
-                                                >
-                                                    {togglingTenantId === tenant.id
-                                                        ? '…'
-                                                        : tenant.is_enabled
-                                                          ? 'Enabled'
-                                                          : 'Disabled'}
-                                                </Button>
-                                            ) : (
-                                                <span
-                                                    className={
-                                                        tenant.is_enabled
-                                                            ? 'text-green-600 dark:text-green-400'
-                                                            : 'text-red-600 dark:text-red-400'
-                                                    }
-                                                >
-                                                    {tenant.is_enabled ? 'Enabled' : 'Disabled'}
-                                                </span>
-                                            )}
+                                            <EnableStatusToggle
+                                                toggleUrl={`/tenants/${tenant.id}/enabled`}
+                                                isEnabled={tenant.is_enabled}
+                                                canUpdate={canUpdateTenant}
+                                                enabledTitle="Tenant is enabled"
+                                                disabledTitle="Tenant is disabled"
+                                                ariaLabel={
+                                                    tenant.is_enabled
+                                                        ? 'Disable tenant (click to toggle)'
+                                                        : 'Enable tenant (click to toggle)'
+                                                }
+                                            />
                                         </td>
                                         <td className="px-4 py-3">
                                             {(canViewTenant || canUpdateTenant || canDeleteTenant) && (
@@ -503,7 +427,11 @@ export default function Tenants({
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Status</dt>
                                     <dd className="mt-0.5">
-                                        {viewTenant.is_enabled ? 'Enabled' : 'Disabled'}
+                                        <EnableStatusToggle
+                                            toggleUrl={`/tenants/${viewTenant.id}/enabled`}
+                                            isEnabled={viewTenant.is_enabled}
+                                            canUpdate={false}
+                                        />
                                     </dd>
                                 </div>
                                 <div>
