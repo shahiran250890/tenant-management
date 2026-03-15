@@ -7,7 +7,7 @@ A Laravel 12 application for managing tenants, users, roles, permissions, and mo
 - **PHP** 8.4
 - **Laravel Herd** (project is Herd-isolated)
 - **Composer** 2.x
-- **Node.js** 18+ and npm
+- **Node.js** v22 and npm
 - **Database**: SQLite (default), MySQL, or PostgreSQL
 
 ## Installation
