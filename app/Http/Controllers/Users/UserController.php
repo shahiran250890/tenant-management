@@ -6,6 +6,7 @@ use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Users\UserRequest;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -28,7 +29,10 @@ class UserController extends Controller
 
     public function index(Request $request): Response
     {
-        $users = User::with('roles')->get();
+        $users = User::with('roles')
+            ->whereKeyNot(auth()->id())
+            ->where('name', '!=', 'Super Admin')
+            ->get();
         $roles = Role::orderBy('name')->pluck('name')->toArray();
 
         return Inertia::render('users/index', [
@@ -47,7 +51,10 @@ class UserController extends Controller
 
     public function store(UserRequest $request): RedirectResponse
     {
-        $validated = $request->safe()->only(['name', 'email', 'password']);
+        $validated = $request->safe()->only(['name', 'email', 'password', 'is_enabled']);
+        if (! array_key_exists('is_enabled', $validated)) {
+            $validated['is_enabled'] = true;
+        }
 
         try {
             $user = User::create($validated);
@@ -80,9 +87,22 @@ class UserController extends Controller
         return redirect()->route('users.index', ['modal' => 'edit', 'user_id' => $user->id]);
     }
 
+    public function updateEnabled(Request $request, User $user): JsonResponse
+    {
+        $this->authorize('update user');
+
+        $validated = $request->validate([
+            'is_enabled' => ['required', 'boolean'],
+        ]);
+
+        $user->update(['is_enabled' => $validated['is_enabled']]);
+
+        return response()->json(['is_enabled' => $user->is_enabled]);
+    }
+
     public function update(UserRequest $request, User $user): RedirectResponse
     {
-        $validated = $request->safe()->only(['name', 'email']);
+        $validated = $request->safe()->only(['name', 'email', 'is_enabled']);
         if ($request->filled('password')) {
             $validated['password'] = $request->validated('password');
         }

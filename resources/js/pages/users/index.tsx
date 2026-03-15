@@ -1,3 +1,7 @@
+/**
+ * Users index page – list, create, edit, delete users and manage roles.
+ * Status (is_enabled) can be toggled via EnableStatusToggle (AJAX + SweetAlert).
+ */
 import { Form, Head, Link, router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FormatDateTime } from '@/components/format-date-time';
@@ -7,6 +11,7 @@ import { dashboard } from '@/routes';
 import usersRoutes from '@/routes/users';
 import type { BreadcrumbItem, User } from '@/types';
 import FlashMessageDialog from '@/components/flash-message-dialog';
+import EnableStatusToggle from '@/components/enable-status-toggle';
 import { EllipsisVertical, Eye, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -20,6 +25,7 @@ import {
 import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import StatusToggle from '@/components/status-toggle';
 import {
     Select,
     SelectContent,
@@ -78,6 +84,7 @@ export default function Index({
     openModalUserId,
 }: Props) {
     const { flash } = usePage().props as { flash?: Flash };
+
     // Client-side filter by name/email (case-insensitive) and by role.
     const [nameFilter, setNameFilter] = useState('');
     const [roleFilter, setRoleFilter] = useState(ROLE_FILTER_ALL);
@@ -108,8 +115,18 @@ export default function Index({
 
     const isCreate = userFormModal === 'create';
     const editUser = userFormModal !== null && userFormModal !== 'create' ? userFormModal : null;
+    // Enable/disable toggle in create/edit form; synced when modal opens.
+    const [isUserEnabled, setIsUserEnabled] = useState(true);
     // In edit mode, show password fields only after clicking "Change password".
     const [showPasswordInEdit, setShowPasswordInEdit] = useState(false);
+
+    useEffect(() => {
+        if (userFormModal === 'create') {
+            setIsUserEnabled(true);
+        } else if (editUser) {
+            setIsUserEnabled(editUser.is_enabled);
+        }
+    }, [userFormModal, editUser]);
     const [successDismissed, setSuccessDismissed] = useState(false);
     const [errorDismissed, setErrorDismissed] = useState(false);
     const showSuccess = flash?.success && !successDismissed;
@@ -142,6 +159,7 @@ export default function Index({
     // User pending delete confirmation (null = confirmation dialog closed).
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserWithRoles | null>(null);
 
+    // Unique role names from all users, sorted; filtered by search for dropdown.
     const roleOptions = useMemo(() => {
         const names = new Set<string>();
         users.forEach((user) =>
@@ -169,6 +187,7 @@ export default function Index({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
+            {/* Page title and actions: name/email filter, role filter, Add user. */}
             <Head title="Users" />
             <ModernPageLayout
                 title="Users"
@@ -232,10 +251,11 @@ export default function Index({
                     </div>
                 }
                 contentClassName="min-h-0">
+                {/* Users table: #, Name, Email, Role, Status (EnableStatusToggle), Created At, Action. */}
                 <div className="rounded-xl border border-border/60 dark:border-border">
                     <table className="w-full table-auto text-left text-sm">
                         <thead>
-                            {/* Column headers: #, Name, Email, Role, Created At, Action */}
+                            {/* Column headers: #, Name, Email, Role, Status, Created At, Action */}
                             <tr className="border-b border-sidebar-border/70 bg-muted/40 dark:border-sidebar-border dark:bg-muted/20">
                                 <th className="w-12 px-4 py-3 font-medium text-muted-foreground">
                                     #
@@ -250,6 +270,9 @@ export default function Index({
                                     Role
                                 </th>
                                 <th className="px-4 py-3 font-medium text-muted-foreground">
+                                    Status
+                                </th>
+                                <th className="px-4 py-3 font-medium text-muted-foreground">
                                     Created At
                                 </th>
                                 <th className="w-12 px-4 py-3 font-medium text-muted-foreground">
@@ -262,7 +285,7 @@ export default function Index({
                             {filteredUsers.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="px-4 py-12 text-center text-muted-foreground"
                                     >
                                         {users.length === 0
@@ -290,9 +313,23 @@ export default function Index({
                                             {user.roles?.map((r) => r.name.charAt(0).toUpperCase() + r.name.slice(1)).join(', ') || '—'}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
+                                            <EnableStatusToggle
+                                                toggleUrl={`/users/${user.id}/enabled`}
+                                                isEnabled={user.is_enabled}
+                                                canUpdate={canUpdateUser}
+                                                enabledTitle="User is enabled"
+                                                disabledTitle="User is disabled"
+                                                ariaLabel={
+                                                    user.is_enabled
+                                                        ? 'Disable user (click to toggle)'
+                                                        : 'Enable user (click to toggle)'
+                                                }
+                                            />
+                                        </td>
+                                        <td className="px-4 py-3 text-muted-foreground">
                                             <FormatDateTime value={user.created_at} />
                                         </td>
-                                        {/* Action dropdown: View / Edit / Delete, gated by canViewUser, canEditUser, canDeleteUser */}
+                                        {/* Action dropdown: View / Edit / Delete, gated by canViewUser, canUpdateUser, canDeleteUser */}
                                         <td className="px-4 py-3">
                                             {(canViewUser || canUpdateUser || canDeleteUser) && (
                                                 <DropdownMenu>
@@ -344,6 +381,7 @@ export default function Index({
                 </div>
             </ModernPageLayout>
 
+            {/* Global flash for create/update/delete success or error. */}
             <FlashMessageDialog
                 open={!!showFlashMessage}
                 variant={isSuccessFlash ? 'success' : 'error'}
@@ -385,7 +423,7 @@ export default function Index({
                 </DialogContent>
             </Dialog>
 
-            {/* View user modal */}
+            {/* View user modal – read-only: email, roles, status, created at. */}
             <Dialog open={!!viewUser} onOpenChange={(open) => !open && setViewUser(null)}>
                 <DialogContent className="sm:max-w-md">
                     {viewUser && (
@@ -423,6 +461,23 @@ export default function Index({
                                     </dd>
                                 </div>
                                 <div>
+                                    <dt className="font-medium text-muted-foreground">Status</dt>
+                                    <dd className="mt-0.5">
+                                        <EnableStatusToggle
+                                            toggleUrl={`/users/${viewUser.id}/enabled`}
+                                            isEnabled={viewUser.is_enabled}
+                                            canUpdate={canUpdateUser}
+                                            enabledTitle="User is enabled"
+                                            disabledTitle="User is disabled"
+                                            ariaLabel={
+                                                viewUser.is_enabled
+                                                    ? 'Disable user (click to toggle)'
+                                                    : 'Enable user (click to toggle)'
+                                            }
+                                        />
+                                    </dd>
+                                </div>
+                                <div>
                                     <dt className="font-medium text-muted-foreground">Created at</dt>
                                     <dd className="mt-0.5">
                                         <FormatDateTime value={viewUser.created_at} />
@@ -434,7 +489,7 @@ export default function Index({
                 </DialogContent>
             </Dialog>
 
-            {/* Create / Edit user modal (shared) */}
+            {/* Create / Edit user modal – shared form: name, email, password, role. */}
             <Dialog
                 open={userFormModal !== null}
                 onOpenChange={(open) => {
@@ -544,6 +599,15 @@ export default function Index({
                                                 </Button>
                                             </div>
                                         )}
+                                        <StatusToggle
+                                            label="Status"
+                                            activeLabel="Enabled"
+                                            inactiveLabel="Disabled"
+                                            name="is_enabled"
+                                            checked={isUserEnabled}
+                                            onCheckedChange={setIsUserEnabled}
+                                            error={errors.is_enabled}
+                                        />
                                         <div className="grid gap-2">
                                             <Label htmlFor="user-form-role">Role</Label>
                                             <select

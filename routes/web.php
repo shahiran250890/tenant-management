@@ -11,6 +11,9 @@ Route::inertia('/', 'welcome')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::inertia('access-denied', 'errors/access-denied')->name('access-denied');
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::patch('{user}/enabled', [UserController::class, 'updateEnabled'])->name('enabled.update');
+    });
     Route::resource('users', UserController::class);
 
     Route::prefix('tenants')->name('tenants.')->group(function () {

@@ -75,6 +75,7 @@ class RolePermissionSeeder extends Seeder
             'name' => 'Super Admin',
             'email' => 'superadmin@example.com',
             'password' => Hash::make('password'),
+            'is_enabled' => true,
         ]);
         $user->assignRole($role1);
 
@@ -82,6 +83,7 @@ class RolePermissionSeeder extends Seeder
             'name' => 'System Admin',
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
+            'is_enabled' => true,
         ]);
         $user->assignRole($role2);
     }

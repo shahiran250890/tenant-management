@@ -46,6 +46,7 @@ class UserRequest extends FormRequest
                 'confirmed',
             ],
             'role' => ['nullable', 'string', 'exists:roles,name'],
+            'is_enabled' => ['required', 'boolean'],
         ];
     }
 
