@@ -85,6 +85,7 @@ test('authenticated user with update user permission can update a user', functio
     $response = $this->put(route('users.update', $target), [
         'name' => 'Updated Name',
         'email' => 'updated@example.com',
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasNoErrors()->assertRedirect(route('users.index'));
