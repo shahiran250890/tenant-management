@@ -95,16 +95,16 @@ export default function Tenants({
     const { flash } = usePage().props as { flash?: Flash };
     const [tenantFormModal, setTenantFormModal] = useState<'create' | TenantWithModules | null>(null);
     const [modulesModalTenant, setModulesModalTenant] = useState<TenantWithModules | null>(null);
-    const [isActive, setIsActive] = useState(true);
+    const [isEnabled, setIsEnabled] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
 
-    // Sync isActive and hosts when modal opens (create vs edit).
+    // Sync isEnabled and hosts when modal opens (create vs edit).
     useEffect(() => {
         if (tenantFormModal === 'create') {
-            setIsActive(true);
+            setIsEnabled(true);
             setHosts(['']);
         } else if (tenantFormModal !== null) {
-            setIsActive(tenantFormModal.is_active);
+            setIsEnabled(tenantFormModal.is_enabled);
             const domainValues =
                 tenantFormModal.domains?.map((d) => d.domain).filter(Boolean) ?? [];
             setHosts(domainValues.length > 0 ? domainValues : ['']);
@@ -248,7 +248,7 @@ export default function Tenants({
                                                 : tenant.host ?? '—'}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">
-                                            {tenant.is_active ? 'Active' : 'Inactive'}
+                                            {tenant.is_enabled ? 'Enabled' : 'Disabled'}
                                         </td>
                                         <td className="px-4 py-3">
                                             {(canViewTenant || canUpdateTenant || canDeleteTenant) && (
@@ -403,7 +403,7 @@ export default function Tenants({
                                 </div>
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Status</dt>
-                                    <dd className="mt-0.5">{viewTenant.is_active ? 'Active' : 'Inactive'}</dd>
+                                    <dd className="mt-0.5">{viewTenant.is_enabled ? 'Enabled' : 'Disabled'}</dd>
                                 </div>
                                 <div>
                                     <dt className="font-medium text-muted-foreground">Created at</dt>
@@ -548,12 +548,12 @@ export default function Tenants({
                                         </div>
                                         <StatusToggle
                                             label="Status"
-                                            activeLabel="Active"
-                                            inactiveLabel="Inactive"
-                                            name="is_active"
-                                            checked={isActive}
-                                            onCheckedChange={setIsActive}
-                                            error={errors.is_active}
+                                            activeLabel="Enabled"
+                                            inactiveLabel="Disabled"
+                                            name="is_enabled"
+                                            checked={isEnabled}
+                                            onCheckedChange={setIsEnabled}
+                                            error={errors.is_enabled}
                                         />
                                     </div>
 

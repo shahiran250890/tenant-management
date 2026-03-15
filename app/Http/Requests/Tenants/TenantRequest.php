@@ -47,7 +47,7 @@ class TenantRequest extends FormRequest
             'hosts' => ['array'],
             'hosts.*' => $hostItemRules,
             'storage_domain' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['required', 'boolean'],
+            'is_enabled' => ['required', 'boolean'],
         ];
     }
 

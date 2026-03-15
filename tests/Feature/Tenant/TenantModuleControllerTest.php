@@ -6,8 +6,12 @@ use App\Models\User;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Str;
+use Tests\TestCase;
+
+uses(TestCase::class);
 
 beforeEach(function () {
+    /** @var TestCase $this */
     $this->seed(RolePermissionSeeder::class);
     $this->seed(ModuleSeeder::class);
 });
@@ -21,7 +25,7 @@ function createTenantForModuleTest(): Tenant
         'database_password' => '',
         'database_host' => '127.0.0.1',
         'database_port' => 3306,
-        'is_active' => true,
+        'is_enabled' => true,
     ]);
 }
 

@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('database_password')->nullable();
             $table->string('database_host')->nullable();
             $table->integer('database_port')->nullable();
-            $table->integer('is_active');
+            $table->boolean('is_enabled')->default(true);
             $table->timestamps();
         });
     }

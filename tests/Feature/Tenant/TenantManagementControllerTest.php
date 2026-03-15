@@ -22,7 +22,7 @@ function createTenant(array $overrides = []): Tenant
         'database_password' => '',
         'database_host' => '127.0.0.1',
         'database_port' => 3306,
-        'is_active' => 1,
+        'is_enabled' => true,
     ], $overrides));
 }
 
@@ -69,7 +69,7 @@ test('authenticated user with create tenant permission can create a tenant', fun
         'name' => 'Acme Corp',
         'hosts' => ['acme.test', 'www.acme.test'],
         'storage_domain' => 'acme-storage',
-        'is_active' => true,
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasNoErrors()->assertRedirect(route('tenants.index'));
@@ -90,7 +90,7 @@ test('authenticated user with update tenant permission can update a tenant', fun
         'name' => 'Updated Tenant Name',
         'hosts' => ['updated.test', 'app.updated.test'],
         'storage_domain' => 'updated-storage',
-        'is_active' => false,
+        'is_enabled' => false,
     ]);
 
     $response->assertSessionHasNoErrors()->assertRedirect(route('tenants.index'));
@@ -101,7 +101,7 @@ test('authenticated user with update tenant permission can update a tenant', fun
     expect($tenant->domains()->pluck('domain')->all())->toContain('updated.test');
     expect($tenant->domains()->pluck('domain')->all())->toContain('app.updated.test');
     expect($tenant->domains()->count())->toBe(2);
-    expect($tenant->is_active)->toBe(0);
+    expect($tenant->is_enabled)->toBeFalse();
 });
 
 test('authenticated user with delete tenant permission can delete a tenant', function () {
@@ -129,13 +129,13 @@ test('tenant name is required when storing', function () {
         'name' => '',
         'hosts' => [],
         'storage_domain' => null,
-        'is_active' => true,
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('name');
 });
 
-test('tenant is_active is required when storing', function () {
+test('tenant is_enabled is required when storing', function () {
     /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
@@ -147,7 +147,7 @@ test('tenant is_active is required when storing', function () {
         'storage_domain' => null,
     ]);
 
-    $response->assertSessionHasErrors('is_active');
+    $response->assertSessionHasErrors('is_enabled');
 });
 
 test('host must be a valid domain with at least one dot when provided', function () {
@@ -160,7 +160,7 @@ test('host must be a valid domain with at least one dot when provided', function
         'name' => 'Vet Tenant',
         'hosts' => ['veterinar'],
         'storage_domain' => 'vet-storage',
-        'is_active' => true,
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('hosts.0');
@@ -177,7 +177,7 @@ test('host must be unique across tenants', function () {
         'name' => 'Other Tenant',
         'hosts' => ['taken.test'],
         'storage_domain' => 'other-storage',
-        'is_active' => true,
+        'is_enabled' => true,
     ]);
 
     $response->assertSessionHasErrors('hosts.0');

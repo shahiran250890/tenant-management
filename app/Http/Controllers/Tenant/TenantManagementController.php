@@ -52,7 +52,7 @@ class TenantManagementController extends Controller
             'name',
             'hosts',
             'storage_domain',
-            'is_active',
+            'is_enabled',
         ]);
         $hosts = $validated['hosts'] ?? [];
         unset($validated['hosts']);
@@ -104,7 +104,7 @@ class TenantManagementController extends Controller
             'name',
             'hosts',
             'storage_domain',
-            'is_active',
+            'is_enabled',
         ]);
         $hosts = $validated['hosts'] ?? [];
         unset($validated['hosts']);

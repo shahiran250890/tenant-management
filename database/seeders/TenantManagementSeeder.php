@@ -26,7 +26,7 @@ class TenantManagementSeeder extends Seeder
             'database_password' => 'tenant_password',
             'database_host' => '127.0.0.1',
             'database_port' => 3306,
-            'is_active' => 1,
+            'is_enabled' => true,
         ])->save();
 
         $tenantDetail = new TenantDetail;

@@ -37,6 +37,7 @@ class Tenant extends Model
         return [
             'database_username' => 'encrypted',
             'database_password' => 'encrypted',
+            'is_enabled' => 'boolean',
         ];
     }
 

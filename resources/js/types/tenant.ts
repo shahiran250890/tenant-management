@@ -17,7 +17,7 @@ export type Tenant = {
     database_password: string;
     database_host: string;
     database_port: number;
-    is_active: boolean;
+    is_enabled: boolean;
     created_at: string;
     updated_at: string;
 };
