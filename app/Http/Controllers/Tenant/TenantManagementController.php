@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Tenant;
 use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantRequest;
+use App\Models\Application;
 use App\Models\Module;
 use App\Models\Tenant;
+use App\Services\TenantProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,12 +32,14 @@ class TenantManagementController extends Controller
 
     public function index(Request $request): Response
     {
-        $tenants = Tenant::with(['domains', 'modules'])->orderBy('name')->get();
+        $tenants = Tenant::with(['domains', 'modules', 'application'])->orderBy('name')->get();
         $modules = Module::where('is_enabled', true)->orderBy('name')->get();
+        $applications = Application::where('is_enabled', true)->orderBy('name')->get();
 
         return Inertia::render('tenants/index', [
             'tenants' => $tenants,
             'modules' => $modules,
+            'applications' => $applications,
             ...$this->resourcePermissionProps(),
             'openModal' => $request->query('modal'),
             'openModalTenantId' => $request->query('tenant_id'),
@@ -53,13 +57,14 @@ class TenantManagementController extends Controller
             'name',
             'hosts',
             'storage_domain',
+            'application_id',
             'is_enabled',
         ]);
         $hosts = $validated['hosts'] ?? [];
         unset($validated['hosts']);
         $hosts = array_values(array_filter(array_map('strval', $hosts)));
         try {
-            $validated['database_name'] = $validated['name'].'_'.Str::random(10);
+            $validated['database_name'] = str_replace(' ', '', $validated['name']).'_'.Str::random(10);
             $validated['database_username'] = 'root';
             $validated['database_password'] = '';
             $validated['database_host'] = '127.0.0.1';
@@ -69,6 +74,23 @@ class TenantManagementController extends Controller
                 if ($host !== '') {
                     $tenant->domains()->create(['domain' => $host]);
                 }
+            }
+
+            try {
+                app(TenantProvisioningService::class)->provision($tenant);
+            } catch (\Throwable $provisioningException) {
+                $tenant->domains()->delete();
+                $tenant->delete();
+                report($provisioningException);
+
+                $message = 'Provisioning failed (database or migrations), tenant was rolled back: '
+                    .$provisioningException->getMessage()
+                    .' Check storage/logs/laravel.log for full details.';
+
+                return redirect()
+                    ->route('tenants.index', ['modal' => 'create'])
+                    ->with('error', $message)
+                    ->with('error_key', now()->timestamp);
             }
         } catch (\Throwable $e) {
             report($e);
@@ -114,6 +136,7 @@ class TenantManagementController extends Controller
             'name',
             'hosts',
             'storage_domain',
+            'application_id',
             'is_enabled',
         ]);
         $hosts = $validated['hosts'] ?? [];

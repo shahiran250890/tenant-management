@@ -22,6 +22,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, Tenant } from '@/types';
@@ -54,10 +61,18 @@ type Module = {
     is_enabled: boolean;
 };
 
+type Application = {
+    id: number;
+    code: string;
+    name: string;
+    is_enabled: boolean;
+};
+
 /** Inertia page props passed from TenantManagementController::index. */
 type Props = {
     tenants: TenantWithModules[];
     modules: Module[];
+    applications: Application[];
     canCreateTenant: boolean;
     canUpdateTenant: boolean;
     canDeleteTenant: boolean;
@@ -84,6 +99,7 @@ type Flash = {
 export default function Tenants({
     tenants,
     modules,
+    applications,
     canCreateTenant,
     canUpdateTenant,
     canDeleteTenant,
@@ -99,6 +115,7 @@ export default function Tenants({
     const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
     const [isEnabled, setIsEnabled] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
+    const [applicationId, setApplicationId] = useState<string>('');
 
     // Sync form state when create vs edit modal opens (isEnabled, hosts from tenant).
     useEffect(() => {
@@ -106,8 +123,10 @@ export default function Tenants({
             if (tenantFormModal === 'create') {
                 setIsEnabled(true);
                 setHosts(['']);
+                setApplicationId(applications[0]?.id.toString() ?? '');
             } else if (tenantFormModal !== null) {
                 setIsEnabled(tenantFormModal.is_enabled);
+                setApplicationId(tenantFormModal.application_id?.toString() ?? '');
                 const domainValues =
                     tenantFormModal.domains?.map((d) => d.domain).filter(Boolean) ?? [];
                 setHosts(domainValues.length > 0 ? domainValues : ['']);
@@ -407,6 +426,10 @@ export default function Tenants({
                                     <dd className="mt-0.5">{viewTenant.storage_domain || '—'}</dd>
                                 </div>
                                 <div>
+                                    <dt className="font-medium text-muted-foreground">Application</dt>
+                                    <dd className="mt-0.5">{viewTenant.application?.name ?? viewTenant.application?.code ?? '—'}</dd>
+                                </div>
+                                <div>
                                     <dt className="font-medium text-muted-foreground">Database name</dt>
                                     <dd className="mt-0.5">{viewTenant.database_name || '—'}</dd>
                                 </div>
@@ -576,6 +599,27 @@ export default function Tenants({
                                                 placeholder="sample_storage"
                                             />
                                             <InputError message={errors.storage_domain} />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="project-application" required>Application</Label>
+                                            <input type="hidden" name="application_id" value={applicationId} />
+                                            <Select
+                                                required
+                                                value={applicationId}
+                                                onValueChange={setApplicationId}
+                                            >
+                                                <SelectTrigger id="project-application">
+                                                    <SelectValue placeholder="Select application" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {applications.map((app) => (
+                                                        <SelectItem key={app.id} value={app.id.toString()}>
+                                                            {app.name} ({app.code})
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={errors.application_id} />
                                         </div>
                                         <StatusToggle
                                             label="Status"

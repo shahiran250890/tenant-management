@@ -12,6 +12,8 @@ export type Tenant = {
     host: string | null;
     domains?: TenantDomain[];
     storage_domain: string;
+    application_id?: number | null;
+    application?: { id: number; code: string; name: string } | null;
     database_name: string;
     database_username: string;
     database_password: string;

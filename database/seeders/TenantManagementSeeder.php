@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Application;
 use App\Models\Domain;
 use App\Models\Tenant;
 use App\Models\TenantDetail;
@@ -15,13 +16,16 @@ class TenantManagementSeeder extends Seeder
      */
     public function run(): void
     {
+        $application = Application::where('code', 'vetmanagementsystem')->first();
+
         $tenant = new Tenant;
         $tenant->forceFill([
             'id' => Str::uuid()->toString(),
             'subscription_plan_id' => null,
             'name' => 'Test Tenant',
             'storage_domain' => 'vetmanagementsystem',
-            'database_name' => 'vetmanagementsystem',
+            'application_id' => $application?->id,
+            'database_name' => 'vetmanagementsystemdb',
             'database_username' => 'root',
             'database_password' => '',
             'database_host' => '127.0.0.1',
