@@ -3,6 +3,7 @@
 use App\Models\Module;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\TenantModuleSyncService;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Str;
@@ -28,8 +29,11 @@ function createTenantForModuleTest(): Tenant
 }
 
 test('authenticated user with update tenant can update tenant modules', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'update tenant');
+    $this->actingAs($user);
+
     $tenant = createTenantForModuleTest();
     $modules = Module::where('is_enabled', true)->orderBy('id')->get();
     $firstId = $modules->first()->id;
@@ -40,15 +44,39 @@ test('authenticated user with update tenant can update tenant modules', function
         ])->values()->all(),
     ];
 
+    $called = false;
+    $this->app->bind(TenantModuleSyncService::class, function () use (&$called, $tenant, $payload) {
+        return new class($called, $tenant, $payload) extends TenantModuleSyncService
+        {
+            public function __construct(
+                private bool &$called,
+                private Tenant $tenant,
+                private array $payload
+            ) {}
+
+            public function syncToTenantDatabase(Tenant $tenant, array $modules): void
+            {
+                $this->called = true;
+
+                expect($tenant->is($this->tenant))->toBeTrue();
+                expect($modules)->toBe($this->payload['modules']);
+            }
+        };
+    });
+
     $response = $this->put(route('tenants.modules.update', $tenant), $payload);
 
     $response->assertSessionHasNoErrors();
     $response->assertRedirect();
+    expect($called)->toBeTrue();
 });
 
 test('authenticated user without update tenant cannot update tenant modules', function () {
+    /** @var TestCase $this */
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant');
+    $this->actingAs($user);
+
     $tenant = createTenantForModuleTest();
     $modules = Module::where('is_enabled', true)->take(1)->get();
     $payload = [

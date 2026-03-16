@@ -6,6 +6,7 @@ use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantModuleRequest;
 use App\Models\Tenant;
+use App\Services\TenantModuleSyncService;
 use Illuminate\Http\RedirectResponse;
 
 class TenantModuleController extends Controller
@@ -22,10 +23,11 @@ class TenantModuleController extends Controller
         return 'tenant';
     }
 
-    public function update(TenantModuleRequest $request, Tenant $tenant): RedirectResponse
+    public function update(TenantModuleRequest $request, Tenant $tenant, TenantModuleSyncService $tenantModuleSyncService): RedirectResponse
     {
         try {
             $tenant->modules()->sync($request->getSyncArray());
+            $tenantModuleSyncService->syncToTenantDatabase($tenant, $request->validated('modules', []));
         } catch (\Throwable $e) {
             report($e);
 
