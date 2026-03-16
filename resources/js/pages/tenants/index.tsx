@@ -3,7 +3,7 @@
  * Uses Inertia + React; tenant status (is_enabled) can be toggled via AJAX with SweetAlert feedback.
  */
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import { EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Database, EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import EnableStatusToggle from '@/components/enable-status-toggle';
 import FlashMessageDialog from '@/components/flash-message-dialog';
@@ -167,6 +167,15 @@ export default function Tenants({
         if (flash?.error) queueMicrotask(() => setErrorDismissed(false));
     }, [flash?.error, flash?.error_key]);
 
+    // Long errors (e.g. from Create tenant user or Run migrations) are shown in a scrollable confirm dialog below.
+    const isLongError =
+        !!flash?.error &&
+        (flash.error.length > 100 ||
+            flash.error.includes('Run tenant migrations') ||
+            flash.error.includes('Ensure tenant user failed') ||
+            flash.error.includes('Tenant schema is out of date'));
+    const showLongErrorDialog = showError && isLongError;
+
     // Reset success dismissed when a new success is flashed (e.g. after create/update).
     useEffect(() => {
         if (flash?.success) queueMicrotask(() => setSuccessDismissed(false));
@@ -182,7 +191,7 @@ export default function Tenants({
         }
     }, [flash?.success, flash?.success_key, flash?.error, flash?.error_key]);
 
-    const showFlashMessage = showSuccess || showError;
+    const showFlashMessage = showSuccess || (showError && !isLongError);
     const isSuccess = !!flash?.success && !successDismissed;
     const flashMessage = flash?.success ?? flash?.error ?? '';
 
@@ -320,6 +329,30 @@ export default function Tenants({
                                                             </DropdownMenuItem>
                                                         )}
                                                         {canUpdateTenant && (
+                                                            <DropdownMenuItem
+                                                                onSelect={() =>
+                                                                    router.post(
+                                                                        `/tenants/${tenant.id}/run-migrations`,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Database className="size-4" />
+                                                                Run migrations
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canUpdateTenant && (
+                                                            <DropdownMenuItem
+                                                                onSelect={() =>
+                                                                    router.post(
+                                                                        `/tenants/${tenant.id}/create-tenant-user`,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <UserPlus className="size-4" />
+                                                                Create tenant user
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canUpdateTenant && (
                                                             <DropdownMenuItem onSelect={() => setModulesModalTenant(tenant)}>
                                                                 <Layers className="size-4" />
                                                                 Manage modules
@@ -346,7 +379,7 @@ export default function Tenants({
                 </div>
             </ModernPageLayout>
 
-            {/* Global flash for create/update/delete success or error. */}
+            {/* Global flash for create/update/delete success or short error. Long errors use the confirm dialog below. */}
             <FlashMessageDialog
                 open={!!showFlashMessage}
                 variant={isSuccess ? 'success' : 'error'}
@@ -354,6 +387,28 @@ export default function Tenants({
                 onClose={dismissFlash}
                 autoCloseMs={1500}
             />
+
+            {/* Long error confirm dialog (e.g. Create tenant user / Run migrations failure). */}
+            <Dialog open={!!showLongErrorDialog} onOpenChange={(open) => !open && dismissFlash()}>
+                <DialogContent className="sm:max-w-lg">
+                    {flash?.error && (
+                        <ModernDialogLayout
+                            title="Error"
+                            description={
+                                <p
+                                    className="text-left whitespace-pre-wrap break-words max-h-64 overflow-y-auto text-sm text-muted-foreground"
+                                    style={{ maxHeight: '16rem' }}
+                                >
+                                    {flash.error}
+                                </p>
+                            }
+                            footer={
+                                <Button onClick={dismissFlash}>OK</Button>
+                            }
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* Delete tenant confirmation dialog */}
             <Dialog open={!!deleteConfirmTenant} onOpenChange={(open) => !open && setDeleteConfirmTenant(null)}>

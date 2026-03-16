@@ -30,6 +30,7 @@ class TenantProvisioningService
     {
         $this->createDatabase($tenant);
         $this->runTenantMigrations($tenant);
+        $this->runTenantSeeders($tenant);
     }
 
     /**
@@ -73,7 +74,7 @@ class TenantProvisioningService
         if (! is_string($application) || $application === '') {
             Log::warning('Tenant provisioning skipped: tenant has no application', ['tenant_id' => $tenant->id]);
 
-            return;
+            throw new RuntimeException('Tenant has no application configured. Assign an application to this tenant first.');
         }
 
         $applications = config('tenant_applications.applications', []);
@@ -112,6 +113,148 @@ class TenantProvisioningService
                 "Tenant migrations failed for tenant [{$tenant->id}]: ".$result->errorOutput()
             );
         }
+    }
+
+    /**
+     * Run the application project's database seeders for this tenant (tenant DB context).
+     */
+    public function runTenantSeeders(Tenant $tenant): void
+    {
+        $application = $tenant->relationLoaded('application')
+            ? $tenant->application?->code
+            : $tenant->application()->first()?->code;
+
+        if (! is_string($application) || $application === '') {
+            return;
+        }
+
+        $applications = config('tenant_applications.applications', []);
+        $path = $applications[$application] ?? null;
+
+        if ($path === null || ! is_dir($path)) {
+            return;
+        }
+
+        $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
+        if (! is_file($artisanPath)) {
+            return;
+        }
+
+        $phpBinary = $this->resolvePhpBinary();
+        $result = Process::path($path)
+            ->timeout(120)
+            ->run([
+                $phpBinary,
+                'artisan',
+                'tenants:artisan',
+                'db:seed --database=tenant',
+                '--tenant='.$tenant->id,
+            ]);
+
+        if (! $result->successful()) {
+            Log::warning('Tenant seeding failed (non-fatal)', [
+                'tenant_id' => $tenant->id,
+                'application' => $application,
+                'output' => $result->output(),
+                'error' => $result->errorOutput(),
+            ]);
+        }
+    }
+
+    /**
+     * Ensure the tenant has at least one user: run UserSeeder only if the tenant's users table is empty.
+     * Invokes the application's ensure-tenant-user command via tenants:artisan.
+     *
+     * @return 'seeded' if users were created, 'skipped' if tenant already had users
+     *
+     * @throws \RuntimeException if application path is missing or command fails
+     */
+    public function ensureTenantUser(Tenant $tenant): string
+    {
+        $application = $tenant->relationLoaded('application')
+            ? $tenant->application?->code
+            : $tenant->application()->first()?->code;
+
+        if (! is_string($application) || $application === '') {
+            throw new RuntimeException('Tenant has no application configured.');
+        }
+
+        $applications = config('tenant_applications.applications', []);
+        $path = $applications[$application] ?? null;
+
+        if ($path === null || ! is_dir($path)) {
+            throw new RuntimeException("Application path for [{$application}] is not configured or does not exist.");
+        }
+
+        $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
+        if (! is_file($artisanPath)) {
+            throw new RuntimeException("Artisan not found at [{$artisanPath}] for application [{$application}].");
+        }
+
+        $phpBinary = $this->resolvePhpBinary();
+        $command = [
+            $phpBinary,
+            'artisan',
+            'tenants:artisan',
+            'ensure-tenant-user',
+            '--tenant='.$tenant->id,
+        ];
+
+        Log::info('Tenant ensureTenantUser: running command', [
+            'tenant_id' => $tenant->id,
+            'tenant_name' => $tenant->name,
+            'application' => $application,
+            'application_path' => $path,
+            'command' => implode(' ', $command),
+        ]);
+
+        $result = Process::path($path)
+            ->timeout(120)
+            ->run($command);
+
+        $output = trim($result->output().$result->errorOutput());
+        $lastLine = str_contains($output, "\n") ? trim(substr($output, strrpos($output, "\n") + 1)) : $output;
+
+        // Treat output as source of truth: tenants:artisan has void handle() so it does not propagate
+        // the inner command exit code; the process can exit 0 even when the seeder failed.
+        $isSuccess = $lastLine === 'seeded' || $lastLine === 'skipped';
+
+        if (! $isSuccess) {
+            Log::error('Tenant ensure-user failed', [
+                'tenant_id' => $tenant->id,
+                'application' => $application,
+                'process_exit_code' => $result->exitCode(),
+                'output' => $result->output(),
+                'error' => $result->errorOutput(),
+            ]);
+
+            if (str_contains($output, 'no-tenant') || str_contains($output, 'No tenant(s) found')) {
+                throw new RuntimeException(
+                    "Tenant [{$tenant->id}] was not found in the application's landlord database. "
+                    ."Ensure the application (e.g. {$application}) has a tenant record with this id in its landlord tenants table, "
+                    .'so that tenants:artisan can run in the correct tenant context.'
+                );
+            }
+
+            if (str_contains($output, 'Column not found') || str_contains($output, 'Unknown column')) {
+                throw new RuntimeException(
+                    'Tenant schema is out of date (missing column or table). Run tenant migrations for this tenant first (Run migrations in the tenant actions menu), then try Create tenant user again.'
+                );
+            }
+
+            throw new RuntimeException(
+                "Ensure tenant user failed for tenant [{$tenant->id}]. Run tenant migrations if the schema is out of date, then try again. Output: ".$output
+            );
+        }
+
+        Log::info('Tenant ensureTenantUser: command finished', [
+            'tenant_id' => $tenant->id,
+            'raw_output' => $output,
+            'parsed_last_line' => $lastLine,
+            'result' => $lastLine,
+        ]);
+
+        return $lastLine === 'seeded' ? 'seeded' : 'skipped';
     }
 
     /**

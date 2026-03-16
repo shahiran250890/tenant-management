@@ -19,6 +19,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('tenants')->name('tenants.')->group(function () {
         Route::put('{tenant}/modules', [TenantModuleController::class, 'update'])->name('modules.update');
         Route::patch('{tenant}/enabled', [TenantManagementController::class, 'updateEnabled'])->name('enabled.update');
+        Route::post('{tenant}/create-tenant-user', [TenantManagementController::class, 'createTenantUser'])->name('create-tenant-user');
+        Route::post('{tenant}/run-migrations', [TenantManagementController::class, 'runTenantMigrations'])->name('run-migrations');
     });
     Route::resource('tenants', TenantManagementController::class);
 });

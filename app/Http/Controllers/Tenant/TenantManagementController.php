@@ -117,6 +117,56 @@ class TenantManagementController extends Controller
         return redirect()->route('tenants.index', ['modal' => 'edit', 'tenant_id' => $tenant->id]);
     }
 
+    public function createTenantUser(Tenant $tenant): RedirectResponse
+    {
+        $this->authorize('update tenant');
+
+        try {
+            $result = app(TenantProvisioningService::class)->ensureTenantUser($tenant);
+
+            $message = $result === 'seeded'
+                ? 'User(s) created for tenant successfully.'
+                : 'Tenant already has user(s); no action taken.';
+
+            return redirect()
+                ->route('tenants.index')
+                ->with('success', $message)
+                ->with('success_key', now()->timestamp);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('tenants.index')
+                ->with('error', 'Failed to create user for tenant: '.$e->getMessage())
+                ->with('error_key', now()->timestamp);
+        }
+    }
+
+    /**
+     * Run the application's tenant migrations for this tenant (e.g. after new migrations are added).
+     * Use this for existing tenants so their schema stays in sync with the latest migrations.
+     */
+    public function runTenantMigrations(Tenant $tenant): RedirectResponse
+    {
+        $this->authorize('update tenant');
+
+        try {
+            app(TenantProvisioningService::class)->runTenantMigrations($tenant);
+
+            return redirect()
+                ->route('tenants.index')
+                ->with('success', 'Tenant migrations completed successfully for '.$tenant->name.'.')
+                ->with('success_key', now()->timestamp);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('tenants.index')
+                ->with('error', 'Failed to run tenant migrations: '.$e->getMessage())
+                ->with('error_key', now()->timestamp);
+        }
+    }
+
     public function updateEnabled(Request $request, Tenant $tenant): JsonResponse
     {
         $this->authorize('update tenant');
