@@ -37,7 +37,8 @@ php artisan migrate
 php artisan db:seed
 ```
 
-Seeding runs roles/permissions, tenant management data, and modules.
+Seeding currently runs **roles/permissions**, **applications**, and **modules**.  
+**It does not create any tenants by default.** Create tenants and their domains manually via the Tenant Management UI or API to trigger any tenant-related provisioning flows in your ecosystem.
 
 ### 4. Build frontend assets
 
