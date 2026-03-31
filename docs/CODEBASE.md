@@ -31,6 +31,7 @@ tenant-management/
 | `app/Http/Middleware/` | Custom middleware (e.g. `EnsureUserIsEnabled`, `EnsureUserHasPermission`). |
 | `app/Http/Requests/` | Form Request classes; mirror controller grouping (e.g. `Users/UserRequest`). |
 | `app/Models/` | Eloquent models. |
+| `app/Services/` | Domain services (e.g. `TenantProvisioningService`, `TenantModuleSyncService`) for provisioning and cross-app sync orchestration. |
 | `app/Concerns/` | Reusable traits (e.g. `HasResourcePermission`). |
 | `app/Actions/` | Single-action or Fortify action classes (e.g. `Fortify/CreateNewUser`). |
 | `app/Providers/` | Service providers (e.g. `FortifyServiceProvider`, `AppServiceProvider`). |
@@ -53,6 +54,12 @@ tenant-management/
 | `routes/console.php` | Artisan commands / scheduled tasks. |
 
 Middleware is configured in `bootstrap/app.php` (no `app/Http/Kernel.php` in Laravel 12).
+
+Tenant-specific action routes are defined under `tenants.*` in `routes/web.php`:
+- `tenants.modules.update` (`PUT /tenants/{tenant}/modules`)
+- `tenants.enabled.update` (`PATCH /tenants/{tenant}/enabled`)
+- `tenants.create-tenant-user` (`POST /tenants/{tenant}/create-tenant-user`)
+- `tenants.run-migrations` (`POST /tenants/{tenant}/run-migrations`)
 
 ---
 
@@ -89,6 +96,10 @@ Middleware is configured in `bootstrap/app.php` (no `app/Http/Kernel.php` in Lar
 | `database/seeders/` | Seed data. `DatabaseSeeder` calls `RolePermissionSeeder`, `TenantManagementSeeder`, `ModuleSeeder`. |
 | `database/factories/` | Model factories for tests and seeding. |
 
+Tenant setup/provisioning tracking columns live in:
+- `database/migrations/2026_03_31_000001_add_setup_status_to_tenants_table.php`
+- `database/migrations/2026_03_31_000002_add_setup_tracking_columns_to_tenants_table.php`
+
 ---
 
 ## Config and environment
@@ -103,6 +114,9 @@ Middleware is configured in `bootstrap/app.php` (no `app/Http/Kernel.php` in Lar
 - **Location**: `tests/`. Pest is used; feature tests typically live in `tests/Feature/`.
 - **Run**: `php artisan test` or `php artisan test --compact --filter=TestName`. If the Artisan test command is not available (e.g. in some environments), use `./vendor/bin/pest` (e.g. `./vendor/bin/pest --compact` or `./vendor/bin/pest tests/Feature/Users/UserControllerTest.php`).
 - **Convention**: Use factories for models; hit HTTP/Inertia when testing flows.
+- **Tenant lifecycle coverage**:
+  - `tests/Feature/Tenant/TenantProvisioningTest.php`
+  - `tests/Feature/Tenant/TenantManagementControllerTest.php`
 
 ---
 

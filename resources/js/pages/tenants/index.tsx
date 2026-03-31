@@ -3,7 +3,7 @@
  * Uses Inertia + React; tenant status (is_enabled) can be toggled via AJAX with SweetAlert feedback.
  */
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import { Database, EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { AlertTriangle, Database, EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import EnableStatusToggle from '@/components/enable-status-toggle';
 import FlashMessageDialog from '@/components/flash-message-dialog';
@@ -11,6 +11,7 @@ import { FormatDateTime } from '@/components/format-date-time';
 import InputError from '@/components/input-error';
 import { ModernDialogLayout } from '@/components/modern-dialog-layout';
 import { ModernPageLayout } from '@/components/modern-page-layout';
+import StatusDisplayBadge from '@/components/status-display-badge';
 import StatusToggle from '@/components/status-toggle';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -31,8 +32,8 @@ import {
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
-import type { BreadcrumbItem, Tenant } from '@/types';
 import tenantsRoutes from '@/routes/tenants';
+import type { BreadcrumbItem, Tenant } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -87,6 +88,30 @@ function isEnabledForTenant(tenant: TenantWithModules, moduleId: number): boolea
     return value === true || value === 1;
 }
 
+function formatSetupStatus(status: string | undefined, stage: string | null | undefined): string {
+    if (status === 'ready') {
+        return 'Ready';
+    }
+
+    if (status === 'failed') {
+        return stage ? `Failed (${stage})` : 'Failed';
+    }
+
+    return stage ? `Provisioning (${stage})` : 'Provisioning';
+}
+
+function setupStatusBadgeClass(status: string | undefined): 'success' | 'error' | 'warning' {
+    if (status === 'ready') {
+        return 'success';
+    }
+
+    if (status === 'failed') {
+        return 'error';
+    }
+
+    return 'warning';
+}
+
 type Flash = {
     modal?: string;
     modal_tenant_id?: number;
@@ -113,6 +138,7 @@ export default function Tenants({
     const [tenantFormModal, setTenantFormModal] = useState<'create' | TenantWithModules | null>(null);
     const [modulesModalTenant, setModulesModalTenant] = useState<TenantWithModules | null>(null);
     const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
+    const [setupErrorTenant, setSetupErrorTenant] = useState<Tenant | null>(null);
     const [isEnabled, setIsEnabled] = useState(true);
     const [hosts, setHosts] = useState<string[]>(['']);
     const [applicationId, setApplicationId] = useState<string>('');
@@ -254,6 +280,9 @@ export default function Tenants({
                                 <th className="px-4 py-3 font-medium text-muted-foreground">
                                     Status
                                 </th>
+                                <th className="px-4 py-3 font-medium text-muted-foreground">
+                                    Setup Status
+                                </th>
                                 <th className="w-12 px-4 py-3 font-medium text-muted-foreground">
                                     Action
                                 </th>
@@ -263,7 +292,7 @@ export default function Tenants({
                             {filteredTenants.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={5}
+                                        colSpan={6}
                                         className="px-4 py-12 text-center text-muted-foreground"
                                     >
                                         {tenants.length === 0
@@ -302,6 +331,12 @@ export default function Tenants({
                                                 }
                                             />
                                         </td>
+                                        <td className="px-4 py-3 text-muted-foreground">
+                                            <StatusDisplayBadge
+                                                label={formatSetupStatus(tenant.setup_status, tenant.setup_stage)}
+                                                tone={setupStatusBadgeClass(tenant.setup_status)}
+                                            />
+                                        </td>
                                         <td className="px-4 py-3">
                                             {(canViewTenant || canUpdateTenant || canDeleteTenant) && (
                                                 <DropdownMenu>
@@ -326,6 +361,12 @@ export default function Tenants({
                                                             <DropdownMenuItem onSelect={() => setTenantFormModal(tenant)}>
                                                                 <Pencil className="size-4" />
                                                                 Edit
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canUpdateTenant && tenant.setup_error?.trim() && (
+                                                            <DropdownMenuItem onSelect={() => setSetupErrorTenant(tenant)}>
+                                                                <AlertTriangle className="size-4" />
+                                                                Setup error log
                                                             </DropdownMenuItem>
                                                         )}
                                                         {canUpdateTenant && (
@@ -528,6 +569,30 @@ export default function Tenants({
                                 </div>
                             </dl>
                         </ModernDialogLayout>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Setup error log modal – read-only setup failure details for troubleshooting. */}
+            <Dialog open={!!setupErrorTenant} onOpenChange={(open) => !open && setSetupErrorTenant(null)}>
+                <DialogContent className="sm:max-w-lg">
+                    {setupErrorTenant && (
+                        <ModernDialogLayout
+                            title={`Setup error log: ${setupErrorTenant.name}`}
+                            description={
+                                <p
+                                    className="text-left whitespace-pre-wrap break-words max-h-64 overflow-y-auto text-sm text-muted-foreground"
+                                    style={{ maxHeight: '16rem' }}
+                                >
+                                    {setupErrorTenant.setup_error || 'No setup error found.'}
+                                </p>
+                            }
+                            footer={(
+                                <Button variant="outline" onClick={() => setSetupErrorTenant(null)}>
+                                    Close
+                                </Button>
+                            )}
+                        />
                     )}
                 </DialogContent>
             </Dialog>

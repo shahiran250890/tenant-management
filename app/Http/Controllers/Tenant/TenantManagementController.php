@@ -69,6 +69,11 @@ class TenantManagementController extends Controller
             $validated['database_password'] = '';
             $validated['database_host'] = '127.0.0.1';
             $validated['database_port'] = 3306;
+            $validated['setup_status'] = 'provisioning';
+            $validated['setup_stage'] = 'database';
+            $validated['setup_error'] = null;
+            $validated['setup_failed_at'] = null;
+            $validated['setup_completed_at'] = null;
             $tenant = Tenant::create($validated);
             foreach ($hosts as $host) {
                 if ($host !== '') {
@@ -78,12 +83,29 @@ class TenantManagementController extends Controller
 
             try {
                 app(TenantProvisioningService::class)->provision($tenant);
+
+                if ($tenant->fresh()?->setup_status === 'provisioning') {
+                    $tenant->update([
+                        'setup_status' => 'ready',
+                        'setup_stage' => 'complete',
+                        'setup_error' => null,
+                        'setup_failed_at' => null,
+                        'setup_completed_at' => now(),
+                    ]);
+                }
             } catch (\Throwable $provisioningException) {
-                $tenant->domains()->delete();
-                $tenant->delete();
+                if ($tenant->fresh()?->setup_status !== 'failed') {
+                    $tenant->update([
+                        'setup_status' => 'failed',
+                        'setup_error' => $provisioningException->getMessage(),
+                        'setup_failed_at' => now(),
+                        'setup_completed_at' => null,
+                    ]);
+                }
+
                 report($provisioningException);
 
-                $message = 'Provisioning failed (database or migrations), tenant was rolled back: '
+                $message = 'Provisioning failed, tenant status marked as failed: '
                     .$provisioningException->getMessage()
                     .' Check storage/logs/laravel.log for full details.';
 
@@ -151,13 +173,34 @@ class TenantManagementController extends Controller
         $this->authorize('update tenant');
 
         try {
+            $tenant->update([
+                'setup_status' => 'provisioning',
+                'setup_stage' => 'migration',
+                'setup_error' => null,
+                'setup_failed_at' => null,
+                'setup_completed_at' => null,
+            ]);
             app(TenantProvisioningService::class)->runTenantMigrations($tenant);
+            $tenant->update([
+                'setup_status' => 'ready',
+                'setup_stage' => 'complete',
+                'setup_error' => null,
+                'setup_failed_at' => null,
+                'setup_completed_at' => now(),
+            ]);
 
             return redirect()
                 ->route('tenants.index')
                 ->with('success', 'Tenant migrations completed successfully for '.$tenant->name.'.')
                 ->with('success_key', now()->timestamp);
         } catch (\Throwable $e) {
+            $tenant->update([
+                'setup_status' => 'failed',
+                'setup_stage' => 'migration',
+                'setup_error' => $e->getMessage(),
+                'setup_failed_at' => now(),
+                'setup_completed_at' => null,
+            ]);
             report($e);
 
             return redirect()

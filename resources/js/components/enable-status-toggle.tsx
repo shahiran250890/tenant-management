@@ -82,8 +82,8 @@ export default function EnableStatusToggle({
     const buttonClassName = toggling
         ? 'text-muted-foreground bg-muted'
         : isEnabled
-          ? 'text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 bg-muted'
-          : 'text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-muted';
+          ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60'
+          : 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60';
 
     // Clickable button with spinner when loading; read-only span when canUpdate is false.
     const tooltipText =
@@ -94,7 +94,7 @@ export default function EnableStatusToggle({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className={`h-auto px-2 py-1 font-bold rounded-md ${buttonClassName}`}
+                className={`h-auto rounded-md px-2 py-1 font-bold ${buttonClassName}`}
                 disabled={toggling}
                 onClick={handleClick}
                 title={tooltipText}
@@ -113,10 +113,10 @@ export default function EnableStatusToggle({
     // Read-only: same bold text, grey background, green/red color.
     return (
         <span
-            className={`inline-block px-2 py-0.5 font-bold rounded-md bg-muted ${
+            className={`inline-block rounded-md px-2 py-0.5 font-bold ${
                 isEnabled
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
             }`}
         >
             {label}

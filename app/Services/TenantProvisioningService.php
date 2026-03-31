@@ -28,9 +28,40 @@ class TenantProvisioningService
      */
     public function provision(Tenant $tenant): void
     {
-        $this->createDatabase($tenant);
-        $this->runTenantMigrations($tenant);
-        $this->runTenantSeeders($tenant);
+        $tenant->update([
+            'setup_status' => 'provisioning',
+            'setup_stage' => 'database',
+            'setup_error' => null,
+            'setup_failed_at' => null,
+            'setup_completed_at' => null,
+        ]);
+
+        try {
+            $this->createDatabase($tenant);
+
+            $tenant->update(['setup_stage' => 'migration']);
+            $this->runTenantMigrations($tenant);
+
+            $tenant->update(['setup_stage' => 'seeder']);
+            $this->runTenantSeeders($tenant);
+
+            $tenant->update([
+                'setup_status' => 'ready',
+                'setup_stage' => 'complete',
+                'setup_error' => null,
+                'setup_failed_at' => null,
+                'setup_completed_at' => now(),
+            ]);
+        } catch (\Throwable $exception) {
+            $tenant->update([
+                'setup_status' => 'failed',
+                'setup_error' => $exception->getMessage(),
+                'setup_failed_at' => now(),
+                'setup_completed_at' => null,
+            ]);
+
+            throw $exception;
+        }
     }
 
     /**
@@ -125,19 +156,19 @@ class TenantProvisioningService
             : $tenant->application()->first()?->code;
 
         if (! is_string($application) || $application === '') {
-            return;
+            throw new RuntimeException('Tenant has no application configured for seeding.');
         }
 
         $applications = config('tenant_applications.applications', []);
         $path = $applications[$application] ?? null;
 
         if ($path === null || ! is_dir($path)) {
-            return;
+            throw new RuntimeException("Application path for [{$application}] is not configured or does not exist.");
         }
 
         $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
         if (! is_file($artisanPath)) {
-            return;
+            throw new RuntimeException("Artisan not found at [{$artisanPath}] for application [{$application}].");
         }
 
         $phpBinary = $this->resolvePhpBinary();
@@ -152,12 +183,24 @@ class TenantProvisioningService
             ]);
 
         if (! $result->successful()) {
-            Log::warning('Tenant seeding failed (non-fatal)', [
+            Log::error('Tenant seeding failed', [
                 'tenant_id' => $tenant->id,
                 'application' => $application,
                 'output' => $result->output(),
                 'error' => $result->errorOutput(),
             ]);
+
+            $tenant->update([
+                'setup_status' => 'failed',
+                'setup_stage' => 'seeder',
+                'setup_error' => $result->errorOutput(),
+                'setup_failed_at' => now(),
+                'setup_completed_at' => null,
+            ]);
+
+            throw new RuntimeException(
+                "Tenant seeding failed for tenant [{$tenant->id}]: ".$result->errorOutput()
+            );
         }
     }
 

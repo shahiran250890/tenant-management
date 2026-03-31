@@ -46,9 +46,13 @@ test('store creates tenant and calls provisioning service', function () {
     $tenant = Tenant::with('application')->where('name', 'New Corp')->first();
     expect($tenant)->not->toBeNull();
     expect($tenant->application?->code)->toBe('vetmanagementsystem');
+    expect($tenant->setup_status)->toBe('ready');
+    expect($tenant->setup_stage)->toBe('complete');
+    expect($tenant->setup_error)->toBeNull();
+    expect($tenant->setup_completed_at)->not->toBeNull();
 });
 
-test('store rolls back tenant and domains when provisioning throws', function () {
+test('store marks tenant as failed when provisioning throws', function () {
     /** @var TestCase $this */
     $this->mock(TenantProvisioningService::class, function ($mock) {
         $mock->shouldReceive('provision')
@@ -73,7 +77,13 @@ test('store rolls back tenant and domains when provisioning throws', function ()
     $response->assertSessionHas('error');
     $response->assertRedirect(route('tenants.index', ['modal' => 'create']));
 
-    expect(Tenant::where('name', 'Fail Corp')->first())->toBeNull();
+    $tenant = Tenant::where('name', 'Fail Corp')->first();
+    expect($tenant)->not->toBeNull();
+    expect($tenant->setup_status)->toBe('failed');
+    expect($tenant->setup_stage)->toBe('database');
+    expect($tenant->setup_error)->toContain('Database creation failed');
+    expect($tenant->setup_failed_at)->not->toBeNull();
+    expect($tenant->domains()->pluck('domain')->all())->toEqual(['failcorp.test']);
 });
 
 test('application_id is required when storing a tenant', function () {

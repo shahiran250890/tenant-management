@@ -20,6 +20,11 @@ export type Tenant = {
     database_host: string;
     database_port: number;
     is_enabled: boolean;
+    setup_status?: 'provisioning' | 'ready' | 'failed' | string;
+    setup_stage?: 'database' | 'migration' | 'seeder' | 'complete' | string | null;
+    setup_error?: string | null;
+    setup_failed_at?: string | null;
+    setup_completed_at?: string | null;
     created_at: string;
     updated_at: string;
 };

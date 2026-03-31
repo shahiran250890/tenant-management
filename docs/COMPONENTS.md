@@ -274,6 +274,23 @@ Modal for success or error flash messages. Optional auto-close.
 
 ---
 
+### SetupErrorLogDialog (pattern)
+
+Tenant troubleshooting dialog pattern used in `tenants/index` to show persisted setup errors.
+
+- **Purpose:** surface `tenant.setup_error` in a scrollable, read-only modal from the tenant action menu.
+- **Trigger pattern:** show action only when `tenant.setup_error?.trim()` is truthy.
+- **Layout pattern:** wrap content in `Dialog` + `DialogContent` + `ModernDialogLayout`.
+- **Body pattern:** use a scrollable `<p>` (`whitespace-pre-wrap`, `break-words`, bounded max height) so long provisioning/migration errors remain readable.
+- **Footer pattern:** single `Close` button (`variant="outline"`).
+
+Typical usage state:
+- `const [setupErrorTenant, setSetupErrorTenant] = useState<Tenant | null>(null);`
+
+This is currently an inline page pattern (not a shared component). If reused in multiple pages, extract to `resources/js/components/setup-error-log-dialog.tsx`.
+
+---
+
 ### DeleteUser
 
 Self-contained “Delete account” section: warning text + dialog with password confirmation. Uses Wayfinder `ProfileController.destroy.form()`. No props.

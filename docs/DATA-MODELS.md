@@ -23,10 +23,18 @@ Main entities, relationships, and when to use which model.
 - **Guarded**: `id`, `subscription_plan_id`; other attributes are fillable via mass assignment as needed
 - **Casts**: `database_username` and `database_password` encrypted; `is_enabled` boolean
 - **Appended**: `host` (accessor from first related domain)
+- **Setup tracking attributes**:
+  - `setup_status` (`provisioning`, `ready`, `failed`)
+  - `setup_stage` (`database`, `migration`, `seeder`, `complete`)
+  - `setup_error` (latest failure details)
+  - `setup_failed_at`, `setup_completed_at`
 - **Relations**:
   - `domains()` — HasMany `Domain`
   - `modules()` — BelongsToMany `Module` (pivot `module_tenant` with `is_enabled` and timestamps)
+  - `application()` — BelongsTo `Application`
 - **Use for**: Tenant management UI; represents a tenant record (name, DB credentials, enabled state, assigned modules). The app does not switch “current tenant” per request; tenants are managed as data.
+
+Lifecycle note: failed provisioning keeps the tenant row and stores failure metadata for retry/remediation.
 
 ### Domain
 
@@ -50,6 +58,12 @@ Main entities, relationships, and when to use which model.
 - **Casts**: `is_enabled` boolean
 - **Relation**: `tenants()` — BelongsToMany `Tenant` (pivot `module_tenant` with `is_enabled` and timestamps)
 - **Use for**: System-wide module definitions; which modules exist and whether they’re enabled globally. Per-tenant module enablement is on the pivot (`module_tenant.is_enabled`).
+
+### Module sync runtime table (tenant DB)
+
+- Tenant-management mirrors module state into each tenant application's tenant database table `module` via `TenantModuleSyncService`.
+- Upsert key: `key`; synced fields: `name`, `is_enabled`, timestamps.
+- This table is in each tenant DB, not in tenant-management landlord DB.
 
 ---
 
@@ -81,6 +95,7 @@ User (global)
 
 Tenant (UUID)
   ├── domains (has many Domain)
+  ├── application (belongs to Application)
   └── modules (belongs to many Module via module_tenant; pivot has is_enabled)
 
 Module

@@ -234,3 +234,48 @@ test('authenticated user with view tenant can visit tenant show page', function 
 
     $response->assertRedirect(route('tenants.index', ['modal' => 'view', 'tenant_id' => $tenant->id]));
 });
+
+test('run tenant migrations marks tenant as ready on success', function () {
+    /** @var TestCase $this */
+    $this->mock(TenantProvisioningService::class, function ($mock) {
+        $mock->shouldReceive('runTenantMigrations')->once()->andReturn(null);
+    });
+
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'update tenant');
+    $tenant = createTenant(['setup_status' => 'failed']);
+    $this->actingAs($user);
+
+    $response = $this->post(route('tenants.run-migrations', $tenant));
+
+    $response->assertRedirect(route('tenants.index'));
+    $tenant->refresh();
+    expect($tenant->setup_status)->toBe('ready');
+    expect($tenant->setup_stage)->toBe('complete');
+    expect($tenant->setup_error)->toBeNull();
+    expect($tenant->setup_completed_at)->not->toBeNull();
+});
+
+test('run tenant migrations marks tenant as failed on exception', function () {
+    /** @var TestCase $this */
+    $this->mock(TenantProvisioningService::class, function ($mock) {
+        $mock->shouldReceive('runTenantMigrations')
+            ->once()
+            ->andThrow(new \RuntimeException('Migration failed'));
+    });
+
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'update tenant');
+    $tenant = createTenant(['setup_status' => 'ready']);
+    $this->actingAs($user);
+
+    $response = $this->post(route('tenants.run-migrations', $tenant));
+
+    $response->assertRedirect(route('tenants.index'));
+    $response->assertSessionHas('error');
+    $tenant->refresh();
+    expect($tenant->setup_status)->toBe('failed');
+    expect($tenant->setup_stage)->toBe('migration');
+    expect($tenant->setup_error)->toContain('Migration failed');
+    expect($tenant->setup_failed_at)->not->toBeNull();
+});

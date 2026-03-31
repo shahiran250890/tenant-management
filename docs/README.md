@@ -12,11 +12,11 @@ Entry point for system documentation. Use this to find where concepts are explai
 
 | Document | Contents |
 |----------|----------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Request flow, Laravel + Inertia, auth/tenant boundaries, shared data |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Request flow, tenant provisioning lifecycle, setup-state transitions, recovery actions |
 | [CODEBASE.md](CODEBASE.md) | Folder structure and where to add new features (pages, controllers, components) |
 | [COMPONENTS.md](COMPONENTS.md) | Custom React components: props, usage, examples |
 | [AUTH-AND-PERMISSIONS.md](AUTH-AND-PERMISSIONS.md) | Login, 2FA, enabled users, roles/permissions, middleware |
-| [DATA-MODELS.md](DATA-MODELS.md) | Main entities (User, Tenant, Module, etc.) and relationships |
+| [DATA-MODELS.md](DATA-MODELS.md) | Main entities (User, Tenant, Module, Application), setup-status fields, relationships |
 | [CONVENTIONS.md](CONVENTIONS.md) | Naming, patterns, and style (PHP/TS, Form Requests, Wayfinder) |
 
 ---
