@@ -1,6 +1,9 @@
 <?php
 
 use App\Jobs\TenantMigrationSetup;
+use App\Jobs\TenantSetupCreateDatabase;
+use App\Jobs\TenantSetupRunMigrations;
+use App\Jobs\TenantSetupRunSeeders;
 use App\Models\Application;
 use App\Models\Tenant;
 use App\Models\User;
@@ -94,4 +97,31 @@ test('application_id is required when storing a tenant', function () {
     ]);
 
     $response->assertSessionHasErrors('application_id');
+});
+
+test('tenant migration setup job dispatches setup chain in sequence', function () {
+    /** @var TestCase $this */
+    Bus::fake();
+
+    $tenant = Tenant::query()->create([
+        'name' => 'Chain Corp',
+        'database_name' => 'chain_corp_db',
+        'database_username' => 'root',
+        'database_password' => '',
+        'database_host' => '127.0.0.1',
+        'database_port' => 3306,
+        'application_id' => Application::where('code', 'vetmanagementsystem')->first()->id,
+        'is_enabled' => true,
+        'setup_status' => 'provisioning',
+        'setup_stage' => 'database',
+    ]);
+
+    $job = new TenantMigrationSetup($tenant->id);
+    $job->handle();
+
+    Bus::assertChained([
+        new TenantSetupCreateDatabase($tenant->id),
+        new TenantSetupRunMigrations($tenant->id),
+        new TenantSetupRunSeeders($tenant->id),
+    ]);
 });

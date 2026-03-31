@@ -23,49 +23,6 @@ use RuntimeException;
 class TenantProvisioningService
 {
     /**
-     * Create the tenant's database and run the application's tenant migrations.
-     *
-     * @throws \RuntimeException if database creation or migration fails
-     */
-    public function provision(Tenant $tenant): void
-    {
-        $tenant->update([
-            'setup_status' => 'provisioning',
-            'setup_stage' => 'database',
-            'setup_error' => null,
-            'setup_failed_at' => null,
-            'setup_completed_at' => null,
-        ]);
-
-        try {
-            $this->createDatabase($tenant);
-
-            $tenant->update(['setup_stage' => 'migration']);
-            $this->runTenantMigrations($tenant);
-
-            $tenant->update(['setup_stage' => 'seeder']);
-            $this->runTenantSeeders($tenant);
-
-            $tenant->update([
-                'setup_status' => 'ready',
-                'setup_stage' => 'complete',
-                'setup_error' => null,
-                'setup_failed_at' => null,
-                'setup_completed_at' => now(),
-            ]);
-        } catch (\Throwable $exception) {
-            $tenant->update([
-                'setup_status' => 'failed',
-                'setup_error' => $exception->getMessage(),
-                'setup_failed_at' => now(),
-                'setup_completed_at' => null,
-            ]);
-
-            throw $exception;
-        }
-    }
-
-    /**
      * Create the MySQL database for the tenant using the tenant's connection credentials.
      */
     public function createDatabase(Tenant $tenant): void
@@ -99,27 +56,10 @@ class TenantProvisioningService
      */
     public function runTenantMigrations(Tenant $tenant): void
     {
-        $application = $tenant->relationLoaded('application')
-            ? $tenant->application?->code
-            : $tenant->application()->first()?->code;
-
-        if (! is_string($application) || $application === '') {
-            Log::warning('Tenant provisioning skipped: tenant has no application', ['tenant_id' => $tenant->id]);
-
-            throw new RuntimeException('Tenant has no application configured. Assign an application to this tenant first.');
-        }
-
-        $applications = config('tenant_applications.applications', []);
-        $path = $applications[$application] ?? null;
-
-        if ($path === null || ! is_dir($path)) {
-            throw new RuntimeException("Application path for [{$application}] is not configured or does not exist. Add it to config/tenant_applications.php and ensure VETMANAGEMENTSYSTEM_PATH (or the relevant env) is set.");
-        }
-
-        $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
-        if (! is_file($artisanPath)) {
-            throw new RuntimeException("Artisan not found at [{$artisanPath}] for application [{$application}].");
-        }
+        ['application' => $application, 'path' => $path] = $this->resolveTenantApplicationContext(
+            $tenant,
+            'Tenant has no application configured. Assign an application to this tenant first.'
+        );
 
         $phpBinary = $this->resolvePhpBinary();
         Log::info('Tenant provisioning: running migrations', [
@@ -160,25 +100,10 @@ class TenantProvisioningService
      */
     public function runTenantSeeders(Tenant $tenant): void
     {
-        $application = $tenant->relationLoaded('application')
-            ? $tenant->application?->code
-            : $tenant->application()->first()?->code;
-
-        if (! is_string($application) || $application === '') {
-            throw new RuntimeException('Tenant has no application configured for seeding.');
-        }
-
-        $applications = config('tenant_applications.applications', []);
-        $path = $applications[$application] ?? null;
-
-        if ($path === null || ! is_dir($path)) {
-            throw new RuntimeException("Application path for [{$application}] is not configured or does not exist.");
-        }
-
-        $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
-        if (! is_file($artisanPath)) {
-            throw new RuntimeException("Artisan not found at [{$artisanPath}] for application [{$application}].");
-        }
+        ['application' => $application, 'path' => $path] = $this->resolveTenantApplicationContext(
+            $tenant,
+            'Tenant has no application configured for seeding.'
+        );
 
         $phpBinary = $this->resolvePhpBinary();
         $result = Process::path($path)
@@ -226,25 +151,10 @@ class TenantProvisioningService
      */
     public function ensureTenantUser(Tenant $tenant): string
     {
-        $application = $tenant->relationLoaded('application')
-            ? $tenant->application?->code
-            : $tenant->application()->first()?->code;
-
-        if (! is_string($application) || $application === '') {
-            throw new RuntimeException('Tenant has no application configured.');
-        }
-
-        $applications = config('tenant_applications.applications', []);
-        $path = $applications[$application] ?? null;
-
-        if ($path === null || ! is_dir($path)) {
-            throw new RuntimeException("Application path for [{$application}] is not configured or does not exist.");
-        }
-
-        $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
-        if (! is_file($artisanPath)) {
-            throw new RuntimeException("Artisan not found at [{$artisanPath}] for application [{$application}].");
-        }
+        ['application' => $application, 'path' => $path] = $this->resolveTenantApplicationContext(
+            $tenant,
+            'Tenant has no application configured.'
+        );
 
         $phpBinary = $this->resolvePhpBinary();
         $command = [
@@ -378,5 +288,36 @@ class TenantProvisioningService
         $path = $home.'/Library/Application Support/Herd/bin/php84';
 
         return is_file($path) && is_executable($path) ? $path : null;
+    }
+
+    /**
+     * @return array{application: string, path: string}
+     */
+    private function resolveTenantApplicationContext(Tenant $tenant, string $missingApplicationMessage): array
+    {
+        $application = $tenant->relationLoaded('application')
+            ? $tenant->application?->code
+            : $tenant->application()->first()?->code;
+
+        if (! is_string($application) || $application === '') {
+            throw new RuntimeException($missingApplicationMessage);
+        }
+
+        $applications = config('tenant_applications.applications', []);
+        $path = $applications[$application] ?? null;
+
+        if ($path === null || ! is_dir($path)) {
+            throw new RuntimeException("Application path for [{$application}] is not configured or does not exist.");
+        }
+
+        $artisanPath = rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'artisan';
+        if (! is_file($artisanPath)) {
+            throw new RuntimeException("Artisan not found at [{$artisanPath}] for application [{$application}].");
+        }
+
+        return [
+            'application' => $application,
+            'path' => $path,
+        ];
     }
 }

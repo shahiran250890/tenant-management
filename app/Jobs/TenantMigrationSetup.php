@@ -3,9 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\Tenant;
-use App\Services\TenantProvisioningService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Bus;
 
 class TenantMigrationSetup implements ShouldQueue
 {
@@ -16,7 +16,7 @@ class TenantMigrationSetup implements ShouldQueue
         $this->onQueue('tenant_migration_setup');
     }
 
-    public function handle(TenantProvisioningService $provisioningService): void
+    public function handle(): void
     {
         $tenant = Tenant::query()->find($this->tenantId);
 
@@ -24,31 +24,10 @@ class TenantMigrationSetup implements ShouldQueue
             return;
         }
 
-        try {
-            $provisioningService->provision($tenant);
-
-            if ($tenant->fresh()?->setup_status === 'provisioning') {
-                $tenant->update([
-                    'setup_status' => 'ready',
-                    'setup_stage' => 'complete',
-                    'setup_error' => null,
-                    'setup_failed_at' => null,
-                    'setup_completed_at' => now(),
-                ]);
-            }
-        } catch (\Throwable $exception) {
-            if ($tenant->fresh()?->setup_status !== 'failed') {
-                $tenant->update([
-                    'setup_status' => 'failed',
-                    'setup_error' => $exception->getMessage(),
-                    'setup_failed_at' => now(),
-                    'setup_completed_at' => null,
-                ]);
-            }
-
-            report($exception);
-
-            throw $exception;
-        }
+        Bus::chain([
+            new TenantSetupCreateDatabase($tenant->id),
+            new TenantSetupRunMigrations($tenant->id),
+            new TenantSetupRunSeeders($tenant->id),
+        ])->onQueue('tenant_migration_setup')->dispatch();
     }
 }
