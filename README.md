@@ -96,6 +96,7 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 - Enable/disable tenants
 - Assign modules to tenants (`PUT /tenants/{tenant}/modules`)
 - Tenant details (e.g. database credentials stored encrypted)
+- Setup status and error log in the UI; initial provisioning, migration retries, and “create tenant user” run as **queued jobs** (see `docs/ARCHITECTURE.md`; use `composer run dev` or `php artisan queue:work` so workers process jobs)
 
 ### System settings (admin)
 
@@ -131,6 +132,7 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 ## Documentation
 
 - **[Documentation index](docs/README.md)** — System docs: architecture, codebase structure, auth & permissions, data models, conventions.
+- **[Failure recovery](docs/FAILURE-RECOVERY.md)** — When tenant setup fails or stays provisioning: queues, stages, and retries.
 - **[Custom components](docs/COMPONENTS.md)** — Props, usage, and examples for app-specific React components (layouts, forms, dialogs, nav).
 
 ## Development

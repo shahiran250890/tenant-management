@@ -4,7 +4,7 @@ Entry point for system documentation. Use this to find where concepts are explai
 
 ## System at a glance
 
-**Tenant Management** is a Laravel 12 + Inertia.js (React) app for managing tenants, users, roles, permissions, and modules. Authentication is handled by Laravel Fortify (login, 2FA, password reset). Authorization uses Spatie Laravel Permission (roles and permissions). The frontend is a React SPA with shared layout (sidebar or header), and backend routes are exposed to TypeScript via Laravel Wayfinder.
+**Tenant Management** is a Laravel 12 + Inertia.js (React) app for managing tenants, users, roles, permissions, and modules. Authentication is handled by Laravel Fortify (login, 2FA, password reset). Authorization uses Spatie Laravel Permission (roles and permissions). Long-running tenant setup (database, migrations, seeders, migration retries, ensure-tenant-user) runs via **queued jobs**; run queue workers in development and production. The frontend is a React SPA with shared layout (sidebar or header), and backend routes are exposed to TypeScript via Laravel Wayfinder.
 
 ---
 
@@ -12,7 +12,8 @@ Entry point for system documentation. Use this to find where concepts are explai
 
 | Document | Contents |
 |----------|----------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Request flow, tenant provisioning lifecycle, setup-state transitions, recovery actions |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Request flow, queued tenant jobs (`TenantMigrationSetup`, retries, ensure-user), setup-state transitions |
+| [FAILURE-RECOVERY.md](FAILURE-RECOVERY.md) | Operator playbook: stuck provisioning, failed stages, queues, paths, retries |
 | [CODEBASE.md](CODEBASE.md) | Folder structure and where to add new features (pages, controllers, components) |
 | [COMPONENTS.md](COMPONENTS.md) | Custom React components: props, usage, examples |
 | [AUTH-AND-PERMISSIONS.md](AUTH-AND-PERMISSIONS.md) | Login, 2FA, enabled users, roles/permissions, middleware |

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Tenant;
 use App\Concerns\HasResourcePermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantRequest;
+use App\Jobs\EnsureTenantUserJob;
+use App\Jobs\RetryTenantMigrationSetup;
+use App\Jobs\TenantMigrationSetup;
 use App\Models\Application;
 use App\Models\Module;
 use App\Models\Tenant;
-use App\Services\TenantProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,40 +82,9 @@ class TenantManagementController extends Controller
                     $tenant->domains()->create(['domain' => $host]);
                 }
             }
-
-            try {
-                app(TenantProvisioningService::class)->provision($tenant);
-
-                if ($tenant->fresh()?->setup_status === 'provisioning') {
-                    $tenant->update([
-                        'setup_status' => 'ready',
-                        'setup_stage' => 'complete',
-                        'setup_error' => null,
-                        'setup_failed_at' => null,
-                        'setup_completed_at' => now(),
-                    ]);
-                }
-            } catch (\Throwable $provisioningException) {
-                if ($tenant->fresh()?->setup_status !== 'failed') {
-                    $tenant->update([
-                        'setup_status' => 'failed',
-                        'setup_error' => $provisioningException->getMessage(),
-                        'setup_failed_at' => now(),
-                        'setup_completed_at' => null,
-                    ]);
-                }
-
-                report($provisioningException);
-
-                $message = 'Provisioning failed, tenant status marked as failed: '
-                    .$provisioningException->getMessage()
-                    .' Check storage/logs/laravel.log for full details.';
-
-                return redirect()
-                    ->route('tenants.index', ['modal' => 'create'])
-                    ->with('error', $message)
-                    ->with('error_key', now()->timestamp);
-            }
+            TenantMigrationSetup::dispatch($tenant->id)
+                ->onQueue('initial_tenant_migration_setup')
+                ->delay(now()->addSeconds(5));
         } catch (\Throwable $e) {
             report($e);
 
@@ -144,22 +115,20 @@ class TenantManagementController extends Controller
         $this->authorize('update tenant');
 
         try {
-            $result = app(TenantProvisioningService::class)->ensureTenantUser($tenant);
-
-            $message = $result === 'seeded'
-                ? 'User(s) created for tenant successfully.'
-                : 'Tenant already has user(s); no action taken.';
+            EnsureTenantUserJob::dispatch($tenant->id)
+                ->onQueue('ensure_tenant_user')
+                ->delay(now()->addSeconds(5));
 
             return redirect()
                 ->route('tenants.index')
-                ->with('success', $message)
+                ->with('success', 'Create tenant user has been queued for '.$tenant->name.'. It will run shortly.')
                 ->with('success_key', now()->timestamp);
         } catch (\Throwable $e) {
             report($e);
 
             return redirect()
                 ->route('tenants.index')
-                ->with('error', 'Failed to create user for tenant: '.$e->getMessage())
+                ->with('error', 'Failed to queue create tenant user: '.$e->getMessage())
                 ->with('error_key', now()->timestamp);
         }
     }
@@ -180,32 +149,20 @@ class TenantManagementController extends Controller
                 'setup_failed_at' => null,
                 'setup_completed_at' => null,
             ]);
-            app(TenantProvisioningService::class)->runTenantMigrations($tenant);
-            $tenant->update([
-                'setup_status' => 'ready',
-                'setup_stage' => 'complete',
-                'setup_error' => null,
-                'setup_failed_at' => null,
-                'setup_completed_at' => now(),
-            ]);
+            RetryTenantMigrationSetup::dispatch($tenant->id)
+                ->onQueue('retry_tenant_migration_setup')
+                ->delay(now()->addSeconds(5));
 
             return redirect()
                 ->route('tenants.index')
-                ->with('success', 'Tenant migrations completed successfully for '.$tenant->name.'.')
+                ->with('success', 'Tenant migrations have been queued for '.$tenant->name.'. They will run shortly.')
                 ->with('success_key', now()->timestamp);
         } catch (\Throwable $e) {
-            $tenant->update([
-                'setup_status' => 'failed',
-                'setup_stage' => 'migration',
-                'setup_error' => $e->getMessage(),
-                'setup_failed_at' => now(),
-                'setup_completed_at' => null,
-            ]);
             report($e);
 
             return redirect()
                 ->route('tenants.index')
-                ->with('error', 'Failed to run tenant migrations: '.$e->getMessage())
+                ->with('error', 'Failed to queue tenant migrations: '.$e->getMessage())
                 ->with('error_key', now()->timestamp);
         }
     }

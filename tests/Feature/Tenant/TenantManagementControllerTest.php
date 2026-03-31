@@ -1,11 +1,15 @@
 <?php
 
+use App\Jobs\EnsureTenantUserJob;
+use App\Jobs\RetryTenantMigrationSetup;
+use App\Jobs\TenantMigrationSetup;
 use App\Models\Application;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantProvisioningService;
 use Database\Seeders\ApplicationSeeder;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -66,9 +70,7 @@ test('authenticated user with view tenant can visit tenants index', function () 
 
 test('authenticated user with create tenant permission can create a tenant', function () {
     /** @var TestCase $this */
-    $this->mock(TenantProvisioningService::class, function ($mock) {
-        $mock->shouldReceive('provision')->once()->andReturn(null);
-    });
+    Bus::fake();
 
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
@@ -89,6 +91,10 @@ test('authenticated user with create tenant permission can create a tenant', fun
     $tenant = Tenant::where('name', 'Acme Corp')->first();
     expect($tenant)->not->toBeNull();
     expect($tenant->domains()->pluck('domain')->all())->toEqual(['acme.test', 'www.acme.test']);
+    expect($tenant->setup_status)->toBe('provisioning');
+    Bus::assertDispatched(TenantMigrationSetup::class, function (TenantMigrationSetup $job) use ($tenant) {
+        return $job->tenantId === $tenant->id;
+    });
 });
 
 test('authenticated user with update tenant permission can update a tenant', function () {
@@ -235,11 +241,38 @@ test('authenticated user with view tenant can visit tenant show page', function 
     $response->assertRedirect(route('tenants.index', ['modal' => 'view', 'tenant_id' => $tenant->id]));
 });
 
-test('run tenant migrations marks tenant as ready on success', function () {
+test('create tenant user queues ensure tenant user job', function () {
+    /** @var TestCase $this */
+    Bus::fake();
+
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'update tenant');
+    $tenant = createTenant();
+    $this->actingAs($user);
+
+    $response = $this->post(route('tenants.create-tenant-user', $tenant));
+
+    $response->assertRedirect(route('tenants.index'));
+    $response->assertSessionHas('success');
+    Bus::assertDispatched(EnsureTenantUserJob::class, function (EnsureTenantUserJob $job) use ($tenant) {
+        return $job->tenantId === $tenant->id;
+    });
+});
+
+test('ensure tenant user job calls provisioning service', function () {
     /** @var TestCase $this */
     $this->mock(TenantProvisioningService::class, function ($mock) {
-        $mock->shouldReceive('runTenantMigrations')->once()->andReturn(null);
+        $mock->shouldReceive('ensureTenantUser')->once()->andReturn('skipped');
     });
+
+    $tenant = createTenant();
+    $job = new EnsureTenantUserJob($tenant->id);
+    $job->handle(app(TenantProvisioningService::class));
+});
+
+test('run tenant migrations queues retry job and sets provisioning', function () {
+    /** @var TestCase $this */
+    Bus::fake();
 
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'update tenant');
@@ -249,6 +282,27 @@ test('run tenant migrations marks tenant as ready on success', function () {
     $response = $this->post(route('tenants.run-migrations', $tenant));
 
     $response->assertRedirect(route('tenants.index'));
+    $response->assertSessionHas('success');
+    $tenant->refresh();
+    expect($tenant->setup_status)->toBe('provisioning');
+    expect($tenant->setup_stage)->toBe('migration');
+    expect($tenant->setup_error)->toBeNull();
+    expect($tenant->setup_completed_at)->toBeNull();
+    Bus::assertDispatched(RetryTenantMigrationSetup::class, function (RetryTenantMigrationSetup $job) use ($tenant) {
+        return $job->tenantId === $tenant->id;
+    });
+});
+
+test('retry tenant migration setup job marks tenant ready when migrations succeed', function () {
+    /** @var TestCase $this */
+    $this->mock(TenantProvisioningService::class, function ($mock) {
+        $mock->shouldReceive('runTenantMigrations')->once()->andReturn(null);
+    });
+
+    $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
+    $job = new RetryTenantMigrationSetup($tenant->id);
+    $job->handle(app(TenantProvisioningService::class));
+
     $tenant->refresh();
     expect($tenant->setup_status)->toBe('ready');
     expect($tenant->setup_stage)->toBe('complete');
@@ -256,7 +310,7 @@ test('run tenant migrations marks tenant as ready on success', function () {
     expect($tenant->setup_completed_at)->not->toBeNull();
 });
 
-test('run tenant migrations marks tenant as failed on exception', function () {
+test('retry tenant migration setup job marks tenant failed when migrations throw', function () {
     /** @var TestCase $this */
     $this->mock(TenantProvisioningService::class, function ($mock) {
         $mock->shouldReceive('runTenantMigrations')
@@ -264,15 +318,11 @@ test('run tenant migrations marks tenant as failed on exception', function () {
             ->andThrow(new \RuntimeException('Migration failed'));
     });
 
-    $user = User::factory()->create();
-    $user->givePermissionTo('view tenant', 'update tenant');
-    $tenant = createTenant(['setup_status' => 'ready']);
-    $this->actingAs($user);
+    $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
+    $job = new RetryTenantMigrationSetup($tenant->id);
 
-    $response = $this->post(route('tenants.run-migrations', $tenant));
+    expect(fn () => $job->handle(app(TenantProvisioningService::class)))->toThrow(\RuntimeException::class);
 
-    $response->assertRedirect(route('tenants.index'));
-    $response->assertSessionHas('error');
     $tenant->refresh();
     expect($tenant->setup_status)->toBe('failed');
     expect($tenant->setup_stage)->toBe('migration');

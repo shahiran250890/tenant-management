@@ -24,9 +24,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | When running tenant migrations we spawn a subprocess (e.g. php artisan ...).
-    | Use the PHP CLI binary here, not the FPM binary. On Laravel Herd, PHP_BINARY
-    | in web context is often php84-fpm, which cannot run artisan. Default 'php'
-    | uses the CLI from PATH; set PHP_CLI_PATH in .env if needed (e.g. /path/to/php84).
+    | Use the PHP CLI binary here, not the FPM binary. Queue workers may run as PHP 8.2
+    | while tenant apps require 8.4+: set PHP_CLI_PATH to Herd's php84, or leave unset
+    | and the service will auto-detect ~/Library/Application Support/Herd/bin/php84 on macOS.
     |
     */
     'php_binary' => env('PHP_CLI_PATH', 'php'),

@@ -34,7 +34,7 @@ Main entities, relationships, and when to use which model.
   - `application()` — BelongsTo `Application`
 - **Use for**: Tenant management UI; represents a tenant record (name, DB credentials, enabled state, assigned modules). The app does not switch “current tenant” per request; tenants are managed as data.
 
-Lifecycle note: failed provisioning keeps the tenant row and stores failure metadata for retry/remediation.
+Lifecycle note: after create, provisioning runs in a **queued job** (`TenantMigrationSetup`); the tenant row stays `provisioning` until the worker completes. Failed provisioning keeps the tenant row and stores failure metadata for retry/remediation.
 
 ### Domain
 

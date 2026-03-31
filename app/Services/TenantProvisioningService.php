@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tenant;
+use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -121,6 +122,11 @@ class TenantProvisioningService
         }
 
         $phpBinary = $this->resolvePhpBinary();
+        Log::info('Tenant provisioning: running migrations', [
+            'tenant_id' => $tenant->id,
+            'application' => $application,
+            'php_binary' => $phpBinary,
+        ]);
         $migrateCommand = 'migrate --path=database/migrations/tenant --database=tenant';
         $result = Process::path($path)
             ->timeout(120)
@@ -133,15 +139,18 @@ class TenantProvisioningService
             ]);
 
         if (! $result->successful()) {
+            $details = $this->formatProcessFailureMessage($result);
+
             Log::error('Tenant migrations failed', [
                 'tenant_id' => $tenant->id,
                 'application' => $application,
                 'output' => $result->output(),
                 'error' => $result->errorOutput(),
+                'exit_code' => $result->exitCode(),
             ]);
 
             throw new RuntimeException(
-                "Tenant migrations failed for tenant [{$tenant->id}]: ".$result->errorOutput()
+                "Tenant migrations failed for tenant [{$tenant->id}]: ".$details
             );
         }
     }
@@ -183,23 +192,26 @@ class TenantProvisioningService
             ]);
 
         if (! $result->successful()) {
+            $details = $this->formatProcessFailureMessage($result);
+
             Log::error('Tenant seeding failed', [
                 'tenant_id' => $tenant->id,
                 'application' => $application,
                 'output' => $result->output(),
                 'error' => $result->errorOutput(),
+                'exit_code' => $result->exitCode(),
             ]);
 
             $tenant->update([
                 'setup_status' => 'failed',
                 'setup_stage' => 'seeder',
-                'setup_error' => $result->errorOutput(),
+                'setup_error' => $details,
                 'setup_failed_at' => now(),
                 'setup_completed_at' => null,
             ]);
 
             throw new RuntimeException(
-                "Tenant seeding failed for tenant [{$tenant->id}]: ".$result->errorOutput()
+                "Tenant seeding failed for tenant [{$tenant->id}]: ".$details
             );
         }
     }
@@ -301,15 +313,41 @@ class TenantProvisioningService
     }
 
     /**
-     * Resolve the PHP CLI binary for subprocess. When running under PHP-FPM (e.g. Herd),
-     * 'php' is often not in PATH. Derive CLI from PHP_BINARY (e.g. php84-fpm -> php84).
+     * Artisan often writes failures to stdout; stderr may be empty. Combine both for diagnostics.
+     */
+    private function formatProcessFailureMessage(ProcessResult $result): string
+    {
+        $combined = trim($result->output().PHP_EOL.$result->errorOutput());
+
+        if ($combined !== '') {
+            return $combined;
+        }
+
+        $code = $result->exitCode();
+
+        return $code !== null
+            ? "No output captured (exit code {$code})."
+            : 'No output captured.';
+    }
+
+    /**
+     * Resolve the PHP CLI binary for subprocess.
+     *
+     * Queue workers often run as plain `php` (e.g. 8.2) while tenant apps require 8.4+.
+     * Prefer explicit `PHP_CLI_PATH` from config; otherwise detect Laravel Herd's php84 on macOS.
+     * When running under PHP-FPM, derive CLI from PHP_BINARY (e.g. php84-fpm -> php84).
      */
     private function resolvePhpBinary(): string
     {
-        $configured = config('tenant_applications.php_binary', 'php');
+        $configured = trim((string) config('tenant_applications.php_binary', 'php'));
 
-        if ($configured !== 'php') {
+        if ($configured !== '' && $configured !== 'php') {
             return $configured;
+        }
+
+        $herdPhp84 = $this->herdPhp84BinaryPath();
+        if ($herdPhp84 !== null) {
+            return $herdPhp84;
         }
 
         if (! defined('PHP_BINARY') || PHP_BINARY === '') {
@@ -325,5 +363,20 @@ class TenantProvisioningService
         }
 
         return 'php';
+    }
+
+    /**
+     * Laravel Herd installs versioned PHP binaries under ~/Library/Application Support/Herd/bin/.
+     */
+    private function herdPhp84BinaryPath(): ?string
+    {
+        $home = getenv('HOME');
+        if (! is_string($home) || $home === '') {
+            return null;
+        }
+
+        $path = $home.'/Library/Application Support/Herd/bin/php84';
+
+        return is_file($path) && is_executable($path) ? $path : null;
     }
 }

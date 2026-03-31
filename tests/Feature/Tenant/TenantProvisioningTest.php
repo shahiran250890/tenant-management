@@ -1,11 +1,12 @@
 <?php
 
+use App\Jobs\TenantMigrationSetup;
 use App\Models\Application;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\TenantProvisioningService;
 use Database\Seeders\ApplicationSeeder;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 beforeEach(function () {
@@ -14,17 +15,9 @@ beforeEach(function () {
     $this->seed(ApplicationSeeder::class);
 });
 
-test('store creates tenant and calls provisioning service', function () {
+test('store creates tenant and dispatches tenant migration setup job', function () {
     /** @var TestCase $this */
-    $provisionCalled = false;
-    $this->mock(TenantProvisioningService::class, function ($mock) use (&$provisionCalled) {
-        $mock->shouldReceive('provision')
-            ->once()
-            ->with(\Mockery::on(fn ($arg) => $arg instanceof Tenant && $arg->name === 'New Corp'))
-            ->andReturnUsing(function () use (&$provisionCalled) {
-                $provisionCalled = true;
-            });
-    });
+    Bus::fake();
 
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
@@ -41,24 +34,22 @@ test('store creates tenant and calls provisioning service', function () {
     ]);
 
     $response->assertSessionHasNoErrors()->assertRedirect(route('tenants.index'));
-    expect($provisionCalled)->toBeTrue();
 
     $tenant = Tenant::with('application')->where('name', 'New Corp')->first();
     expect($tenant)->not->toBeNull();
     expect($tenant->application?->code)->toBe('vetmanagementsystem');
-    expect($tenant->setup_status)->toBe('ready');
-    expect($tenant->setup_stage)->toBe('complete');
+    expect($tenant->setup_status)->toBe('provisioning');
+    expect($tenant->setup_stage)->toBe('database');
     expect($tenant->setup_error)->toBeNull();
-    expect($tenant->setup_completed_at)->not->toBeNull();
+    expect($tenant->setup_completed_at)->toBeNull();
+    Bus::assertDispatched(TenantMigrationSetup::class, function (TenantMigrationSetup $job) use ($tenant) {
+        return $job->tenantId === $tenant->id;
+    });
 });
 
-test('store marks tenant as failed when provisioning throws', function () {
+test('store still dispatches setup job when provision would fail later', function () {
     /** @var TestCase $this */
-    $this->mock(TenantProvisioningService::class, function ($mock) {
-        $mock->shouldReceive('provision')
-            ->once()
-            ->andThrow(new \RuntimeException('Database creation failed'));
-    });
+    Bus::fake();
 
     $user = User::factory()->create();
     $user->givePermissionTo('view tenant', 'create tenant');
@@ -74,16 +65,18 @@ test('store marks tenant as failed when provisioning throws', function () {
         'is_enabled' => true,
     ]);
 
-    $response->assertSessionHas('error');
-    $response->assertRedirect(route('tenants.index', ['modal' => 'create']));
+    $response->assertSessionHasNoErrors()->assertRedirect(route('tenants.index'));
 
     $tenant = Tenant::where('name', 'Fail Corp')->first();
     expect($tenant)->not->toBeNull();
-    expect($tenant->setup_status)->toBe('failed');
+    expect($tenant->setup_status)->toBe('provisioning');
     expect($tenant->setup_stage)->toBe('database');
-    expect($tenant->setup_error)->toContain('Database creation failed');
-    expect($tenant->setup_failed_at)->not->toBeNull();
+    expect($tenant->setup_error)->toBeNull();
+    expect($tenant->setup_failed_at)->toBeNull();
     expect($tenant->domains()->pluck('domain')->all())->toEqual(['failcorp.test']);
+    Bus::assertDispatched(TenantMigrationSetup::class, function (TenantMigrationSetup $job) use ($tenant) {
+        return $job->tenantId === $tenant->id;
+    });
 });
 
 test('application_id is required when storing a tenant', function () {
