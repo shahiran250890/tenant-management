@@ -31,12 +31,23 @@ return [
     */
     'php_binary' => env('PHP_CLI_PATH', 'php'),
 
+    'internal_api' => [
+        'issuer' => env('INTERNAL_SETUP_ISSUER', 'tenant-management'),
+        'shared_secret' => env('INTERNAL_SETUP_SHARED_SECRET', 'ea2c45eda2ff7f48d7b5c93eb48beba60b4bad9a7b34230adc2c28b6ea962dab'),
+        'timeout_seconds' => (int) env('INTERNAL_SETUP_TIMEOUT_SECONDS', 120),
+        'default_scheme' => env('INTERNAL_SETUP_DEFAULT_SCHEME', 'http'),
+    ],
+
     'applications' => [
         // Key must match application.code (e.g. applications table). Value = path to that Laravel app.
         // base_path('../vetmanagementsystem') = sibling folder when tenant-management and vetmanagementsystem
         // sit side-by-side (e.g. development/tenant-management and development/vetmanagementsystem).
         // Override with VETMANAGEMENTSYSTEM_PATH in .env for an absolute path if needed.
         'vetmanagementsystem' => env('VETMANAGEMENTSYSTEM_PATH', base_path('../vetmanagementsystem')),
+    ],
+
+    'api_base_urls' => [
+        'vetmanagementsystem' => env('VETMANAGEMENTSYSTEM_API_BASE_URL', 'https://vetmanagementsystem.test'),
     ],
 
 ];

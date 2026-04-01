@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Tenant;
-use App\Services\TenantProvisioningService;
+use App\Services\TenantSetupApiClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -17,7 +17,7 @@ class TenantSetupCreateDatabase implements ShouldQueue
         $this->onQueue('tenant_migration_setup');
     }
 
-    public function handle(TenantProvisioningService $provisioningService): void
+    public function handle(TenantSetupApiClient $apiClient): void
     {
         $tenant = Tenant::query()->find($this->tenantId);
 
@@ -33,7 +33,7 @@ class TenantSetupCreateDatabase implements ShouldQueue
             'setup_completed_at' => null,
         ]);
 
-        $provisioningService->createDatabase($tenant);
+        $apiClient->createDatabase($tenant);
     }
 
     public function failed(Throwable $exception): void

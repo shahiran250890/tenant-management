@@ -6,7 +6,7 @@ use App\Jobs\TenantMigrationSetup;
 use App\Models\Application;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\TenantProvisioningService;
+use App\Services\TenantSetupApiClient;
 use Database\Seeders\ApplicationSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\Bus;
@@ -259,15 +259,15 @@ test('create tenant user queues ensure tenant user job', function () {
     });
 });
 
-test('ensure tenant user job calls provisioning service', function () {
+test('ensure tenant user job calls tenant setup api client', function () {
     /** @var TestCase $this */
-    $this->mock(TenantProvisioningService::class, function ($mock) {
+    $this->mock(TenantSetupApiClient::class, function ($mock) {
         $mock->shouldReceive('ensureTenantUser')->once()->andReturn('skipped');
     });
 
     $tenant = createTenant();
     $job = new EnsureTenantUserJob($tenant->id);
-    $job->handle(app(TenantProvisioningService::class));
+    $job->handle(app(TenantSetupApiClient::class));
 });
 
 test('run tenant migrations queues retry job and sets provisioning', function () {
@@ -295,13 +295,13 @@ test('run tenant migrations queues retry job and sets provisioning', function ()
 
 test('retry tenant migration setup job marks tenant ready when migrations succeed', function () {
     /** @var TestCase $this */
-    $this->mock(TenantProvisioningService::class, function ($mock) {
-        $mock->shouldReceive('runTenantMigrations')->once()->andReturn(null);
+    $this->mock(TenantSetupApiClient::class, function ($mock) {
+        $mock->shouldReceive('runMigrations')->once()->andReturn(null);
     });
 
     $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
     $job = new RetryTenantMigrationSetup($tenant->id);
-    $job->handle(app(TenantProvisioningService::class));
+    $job->handle(app(TenantSetupApiClient::class));
 
     $tenant->refresh();
     expect($tenant->setup_status)->toBe('ready');
@@ -312,8 +312,8 @@ test('retry tenant migration setup job marks tenant ready when migrations succee
 
 test('retry tenant migration setup job marks tenant failed when migrations throw', function () {
     /** @var TestCase $this */
-    $this->mock(TenantProvisioningService::class, function ($mock) {
-        $mock->shouldReceive('runTenantMigrations')
+    $this->mock(TenantSetupApiClient::class, function ($mock) {
+        $mock->shouldReceive('runMigrations')
             ->once()
             ->andThrow(new \RuntimeException('Migration failed'));
     });
@@ -321,7 +321,7 @@ test('retry tenant migration setup job marks tenant failed when migrations throw
     $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
     $job = new RetryTenantMigrationSetup($tenant->id);
 
-    expect(fn () => $job->handle(app(TenantProvisioningService::class)))->toThrow(\RuntimeException::class);
+    expect(fn () => $job->handle(app(TenantSetupApiClient::class)))->toThrow(\RuntimeException::class);
 
     $tenant->refresh();
     expect($tenant->setup_status)->toBe('failed');

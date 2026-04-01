@@ -9,7 +9,7 @@ Operator playbook when tenant setup stays stuck, shows **Failed**, or actions li
 | Check | What to do |
 |-------|------------|
 | Queue workers | Tenant provisioning and retries run as **queued jobs**. Ensure workers are running (e.g. `composer run dev`, or `php artisan queue:work`, or your process manager). Without workers, setup stays `provisioning` and jobs accumulate in the queue backend (e.g. `jobs` table when `QUEUE_CONNECTION=database`). |
-| Queues listened to | Jobs use: `initial_tenant_migration_setup`, `retry_tenant_migration_setup`, `ensure_tenant_user`. Workers must process these queues (multi-queue worker or no `--queue` filter if all queues are processed). |
+| Queues listened to | Jobs use: `initial_tenant_migration_setup`, `tenant_migration_setup`, `retry_tenant_migration_setup`, `ensure_tenant_user`. Workers must process these queues (multi-queue worker or no `--queue` filter if all queues are processed). |
 | Delay | Dispatches use a **5 second** delay before the job runs. Wait at least that long before assuming failure. |
 | UI vs job outcome | A **success** flash after create / run migrations / create tenant user means **the job was queued**, not that provisioning finished. Refresh the tenants list and watch **Setup Status** and **Setup error log**. |
 
@@ -29,7 +29,7 @@ Use the stage to pick the right section below.
 | Likely cause | Recovery |
 |--------------|----------|
 | No worker | Start queue workers; failed jobs may appear in `failed_jobs` after exceptions — use `php artisan queue:retry` if appropriate. |
-| Job crashed before updating tenant | Check `storage/logs/laravel.log` for the job class (`TenantMigrationSetup`, `RetryTenantMigrationSetup`, `EnsureTenantUserJob`). |
+| Job crashed before updating tenant | Check `storage/logs/laravel.log` for job classes (`TenantMigrationSetup`, `TenantSetupCreateDatabase`, `TenantSetupRunMigrations`, `TenantSetupRunSeeders`, `RetryTenantMigrationSetup`, `EnsureTenantUserJob`). |
 | Database / MySQL unreachable | Fix connectivity from the app server to MySQL using the tenant’s `database_host`, `database_port`, and credentials. Retry after fixing. |
 
 ---
@@ -49,13 +49,13 @@ Typical issues: cannot create the tenant database (permissions, disk, connection
 
 ## 5. Failed at `migration` stage
 
-Typical issues: target app path wrong, `artisan` missing, migration subprocess errors, tenant id missing in the target app’s landlord DB.
+Typical issues: target app base URL/config mismatch, internal auth mismatch, migration API errors, or tenant id missing in the target app’s landlord DB.
 
 | Step | Action |
 |------|--------|
-| 1 | Ensure `config/tenant_applications.php` maps the tenant’s **application `code`** to a real filesystem path (`VETMANAGEMENTSYSTEM_PATH` etc.). |
-| 2 | Set `PHP_CLI_PATH` if the web PHP cannot run CLI `artisan` (see architecture doc). |
-| 3 | Run **Run migrations** from the UI to queue `RetryTenantMigrationSetup` after fixing config. |
+| 1 | Ensure `config/tenant_applications.php` has a valid `api_base_urls[application_code]` (e.g. `VETMANAGEMENTSYSTEM_API_BASE_URL`). |
+| 2 | Ensure `INTERNAL_SETUP_ISSUER` and `INTERNAL_SETUP_SHARED_SECRET` match on both apps; verify token endpoint `POST /api/internal/tenant-setup/token` is reachable. |
+| 3 | Run **Run migrations** from the UI to queue `RetryTenantMigrationSetup` after fixing config/auth. |
 | 4 | If the error mentions **unknown column** / **table**, the tenant schema is behind — **Run migrations** is the right retry after deploying new migrations to the target app. |
 | 5 | If the error mentions **tenant not found** in the target app, ensure that application’s **landlord** `tenants` table contains a row with the **same UUID** as this tenant-management tenant. |
 
@@ -80,8 +80,8 @@ Runs in `EnsureTenantUserJob` (queue `ensure_tenant_user`).
 |-------------------|----------|
 | Stuck queued | Same as section 3 — workers and queue names. |
 | Schema out of date | **Run migrations** first, then **Create tenant user** again. |
-| Tenant not in target app’s landlord DB | Sync or create the tenant record in the managed application so `tenants:artisan --tenant={uuid}` can resolve context. |
-| Output not `seeded` / `skipped` | Read full subprocess output in logs; fix the target app’s `ensure-tenant-user` command. |
+| Tenant not in target app’s landlord DB | Sync or create the tenant record in the managed application so internal setup endpoints can resolve tenant context. |
+| API response missing `seeded` / `skipped` | Read API error from logs and fix the target app `ensure-user` endpoint/service behavior. |
 
 ---
 
@@ -110,7 +110,7 @@ If landlord modules look correct but the tenant app does not see modules:
 
 ## 10. Logs and database tables
 
-- **Application log**: `storage/logs/laravel.log` (provisioning service logs errors with context).
+- **Application log**: `storage/logs/laravel.log` (jobs and API client log failures with context).
 - **Queue `database` driver**: inspect `jobs` and `failed_jobs` tables; retry failed jobs when the root cause is fixed.
 - **Tenant row**: query `tenants` for `setup_status`, `setup_stage`, `setup_error`, `setup_failed_at`, `setup_completed_at`.
 
@@ -118,6 +118,6 @@ If landlord modules look correct but the tenant app does not see modules:
 
 ## Related docs
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — jobs, queues, subprocess commands, cross-app paths.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — jobs, queues, internal setup API auth flow, cross-app paths.
 - [CODEBASE.md](CODEBASE.md) — where jobs and services live.
 - [DATA-MODELS.md](DATA-MODELS.md) — tenant fields and relationships.

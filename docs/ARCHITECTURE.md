@@ -54,15 +54,18 @@ Important boundary: this system stores **landlord metadata** about tenants and a
 
 ## Tenant lifecycle architecture
 
-Heavy work runs **asynchronously on the queue** so HTTP requests return quickly. Each dispatch uses a **5 second delay** before the job runs (see `TenantManagementController`). You must run queue workers that listen to the named queues below (or use `queue:work` without `--queue` if you process all jobs).
+Heavy work runs **asynchronously on the queue** so HTTP requests return quickly. The setup flow is staged and sequential via `Bus::chain()` and each stage updates tenant setup fields (`setup_status`, `setup_stage`, `setup_error`).
 
 ### Background jobs
 
 | Job | Queue (from controller dispatch) | Role |
 |-----|----------------------------------|------|
-| `TenantMigrationSetup` | `initial_tenant_migration_setup` | Runs full `TenantProvisioningService::provision()` after create. |
-| `RetryTenantMigrationSetup` | `retry_tenant_migration_setup` | Runs `runTenantMigrations()` then updates setup fields to `ready` or `failed`. |
-| `EnsureTenantUserJob` | `ensure_tenant_user` | Runs `ensureTenantUser()` in the target application. |
+| `TenantMigrationSetup` | `initial_tenant_migration_setup` | Entry job; dispatches chain: `TenantSetupCreateDatabase` -> `TenantSetupRunMigrations` -> `TenantSetupRunSeeders`. |
+| `TenantSetupCreateDatabase` | `tenant_migration_setup` | Calls internal setup API `POST /tenants/{id}/database`; marks `database` stage. |
+| `TenantSetupRunMigrations` | `tenant_migration_setup` | Calls internal setup API `POST /tenants/{id}/migrations`; marks `migration` stage. |
+| `TenantSetupRunSeeders` | `tenant_migration_setup` | Calls internal setup API `POST /tenants/{id}/seeders`; marks `seeder`, then `ready/complete`. |
+| `RetryTenantMigrationSetup` | `retry_tenant_migration_setup` | Calls target-app internal API for migration retry and updates setup fields. |
+| `EnsureTenantUserJob` | `ensure_tenant_user` | Calls target-app internal API to ensure tenant user (`seeded`/`skipped`). |
 
 ### 1) Create tenant
 
@@ -70,15 +73,14 @@ Heavy work runs **asynchronously on the queue** so HTTP requests return quickly.
 - validates request (`TenantRequest`);
 - creates tenant + domain records in landlord DB;
 - initializes setup tracking (`setup_status=provisioning`, `setup_stage=database`);
-- dispatches `TenantMigrationSetup` with tenant id (queued on `initial_tenant_migration_setup`, delayed 5 seconds).
+- dispatches `TenantMigrationSetup` with tenant id (queue `initial_tenant_migration_setup`, delayed 5 seconds).
 
 The HTTP response returns **success immediately**; provisioning status moves to `ready` or `failed` only after the job runs.
 
-`TenantMigrationSetup` calls `TenantProvisioningService::provision($tenant)`, which:
-- `createDatabase`: creates tenant MySQL database using tenant credentials;
-- `runTenantMigrations`: runs the target app tenant migrations through subprocess;
-- `runTenantSeeders`: runs tenant seeders in tenant context;
-- optionally normalizes stuck `provisioning` to `ready` if the service left the row in an intermediate state.
+`TenantMigrationSetup` dispatches a chained sequence of jobs:
+- `TenantSetupCreateDatabase`: marks `database` stage and calls target app internal API `POST /api/internal/tenant-setup/tenants/{id}/database`;
+- `TenantSetupRunMigrations`: marks `migration` stage and calls target app internal API `POST /api/internal/tenant-setup/tenants/{id}/migrations`;
+- `TenantSetupRunSeeders`: marks `seeder` stage and calls target app internal API `POST /api/internal/tenant-setup/tenants/{id}/seeders`, then marks `ready` + `complete`.
 
 During provisioning, setup stage/status fields are updated per step. On success, tenant is marked `ready` with `setup_stage=complete` and `setup_completed_at`. On failure, tenant is marked `failed` with error details and failure timestamp.
 
@@ -90,27 +92,44 @@ If provisioning fails, the tenant record is retained (status-driven failure mode
 - marks tenant `provisioning` at `migration` stage and clears prior error timestamps;
 - dispatches `RetryTenantMigrationSetup` (queue `retry_tenant_migration_setup`, delayed 5 seconds).
 
-The job runs `TenantProvisioningService::runTenantMigrations($tenant)` then sets `ready` + `complete` on success, or `failed` + `migration` with error on exception.
+The job calls target-app internal API endpoint `POST /api/internal/tenant-setup/tenants/{id}/migrations` then sets `ready` + `complete` on success, or `failed` + `migration` with error on exception.
 
 ### 3) Ensure tenant user exists
 
-`TenantManagementController@createTenantUser` dispatches `EnsureTenantUserJob` (queue `ensure_tenant_user`, delayed 5 seconds). The job calls `TenantProvisioningService::ensureTenantUser($tenant)`, which shells into the target app via `tenants:artisan` and treats the last line of output (`seeded` or `skipped`) as success.
+`TenantManagementController@createTenantUser` dispatches `EnsureTenantUserJob` (queue `ensure_tenant_user`, delayed 5 seconds). The job calls target-app internal API endpoint `POST /api/internal/tenant-setup/tenants/{id}/ensure-user` and treats API `result` (`seeded` or `skipped`) as success.
 
 ---
 
 ## Cross-application execution model
 
-This app does not directly run migration classes from other projects. Instead, it shells into target Laravel applications.
+This app does not directly run migration classes from other projects. Instead, it calls authenticated internal setup APIs exposed by each managed application.
 
-- Application paths are configured in `config/tenant_applications.php` (`applications` map keyed by application code).
-- Current mapping includes `vetmanagementsystem`.
-- Subprocess PHP binary is configurable via `PHP_CLI_PATH` (`tenant_applications.php` -> `php_binary`).
-- Commands are run from the target app root using:
-  - `php artisan tenants:artisan "migrate --path=database/migrations/tenant --database=tenant" --tenant={id}`
-  - `php artisan tenants:artisan "db:seed --database=tenant" --tenant={id}`
-  - `php artisan tenants:artisan ensure-tenant-user --tenant={id}`
+- Application API base URLs are configured in `config/tenant_applications.php` (`api_base_urls` map keyed by application code).
+- Base URL resolution is dynamic per tenant, in this priority order:
+  1. `tenant.setup_api_base_url` (explicit override per tenant)
+  2. first tenant domain (`tenant.domains[0].domain`)
+  3. application fallback in `tenant_applications.api_base_urls[application_code]`
+- If a host is stored without scheme, URL normalization uses:
+  1. `tenant_applications.internal_api.default_scheme` (`INTERNAL_SETUP_DEFAULT_SCHEME`)
+  2. scheme from `APP_URL`
+  3. fallback `https`
+- Internal auth is configured with shared secret + issuer (`tenant_applications.internal_api.*`).
+- Token flow:
+  - Tenant-management signs `X-Internal-Setup-Issuer`, `X-Internal-Setup-Timestamp`, `X-Internal-Setup-Signature` and calls `POST /api/internal/tenant-setup/token`.
+  - Managed app returns a short-lived bearer token, cached by token hash.
+  - Stage endpoints use `Authorization: Bearer <token>`.
+- Resilience behavior for multi-tenant/local environments:
+  - if token endpoint returns `404` on a candidate base URL, client falls back to next candidate;
+  - if `https://` candidate cannot connect, client also tries `http://` variant for the same host.
+- Token request failures now include token URL, HTTP status, and server message for faster diagnosis.
+- Current API endpoints used:
+  - `POST /api/internal/tenant-setup/token`
+  - `POST /api/internal/tenant-setup/tenants/{id}/database`
+  - `POST /api/internal/tenant-setup/tenants/{id}/migrations`
+  - `POST /api/internal/tenant-setup/tenants/{id}/seeders`
+  - `POST /api/internal/tenant-setup/tenants/{id}/ensure-user`
 
-This keeps tenant-management decoupled from implementation details inside each managed application.
+This keeps tenant-management decoupled from implementation details and filesystem/PHP-binary concerns inside each managed application.
 
 ---
 
@@ -155,7 +174,7 @@ Wayfinder-generated route/action helpers are the source of truth for frontend ro
 - Access control uses `auth`, `verified`, and permission middleware/trait on resource controllers.
 - Disabled users are force-logged out by `EnsureUserIsEnabled`.
 - Tenant DB credentials are stored encrypted at rest (Eloquent casts).
-- Provisioning/migration/seed operations are side-effectful subprocess operations (run inside queued jobs) with logging.
+- Provisioning/migration/seed operations are side-effectful internal API operations (run inside queued jobs) with logging.
 - Provisioning state is observable and recoverable from UI actions instead of destructive rollback of failed tenant records.
 - **Queue workers** must be running for create / run migrations / create tenant user to complete; otherwise jobs sit in `jobs` (or your queue backend) until processed.
 
@@ -165,7 +184,7 @@ Wayfinder-generated route/action helpers are the source of truth for frontend ro
 
 | Current state | Trigger/action | Next state | Notes |
 |---------------|----------------|------------|-------|
-| `provisioning` + `database` | `TenantMigrationSetup` job runs; DB created successfully | `provisioning` + `migration` | Transition inside `TenantProvisioningService::provision` (async after HTTP create). |
+| `provisioning` + `database` | `TenantMigrationSetup` dispatches chain; `TenantSetupCreateDatabase` succeeds | `provisioning` + `migration` | Async chain on `tenant_migration_setup` queue. |
 | `provisioning` + `migration` | Tenant migrations succeed | `provisioning` + `seeder` | Continues provisioning pipeline. |
 | `provisioning` + `seeder` | Tenant seeders succeed | `ready` + `complete` | Sets `setup_completed_at`, clears error fields. |
 | `provisioning` + any stage | Exception during provisioning | `failed` + failing stage | Stores `setup_error`, sets `setup_failed_at`. |
@@ -189,8 +208,8 @@ Step-by-step troubleshooting for stuck provisioning, failed stages, queue issues
 
 Feature tests use `Bus::fake()` for HTTP flows and assert **jobs are dispatched** with the correct tenant id. Separate tests instantiate jobs and call `handle()` with a mocked `TenantProvisioningService` to assert **post-job** tenant state.
 
-- **Create tenant**: tenant row stays `provisioning` / `database` until a worker runs `TenantMigrationSetup`; tests assert `TenantMigrationSetup` is dispatched and domains are stored.
-- **Create tenant user**: asserts `EnsureTenantUserJob` is dispatched; job unit test asserts `ensureTenantUser` is invoked on the service.
-- **Run migrations**: HTTP path asserts `RetryTenantMigrationSetup` is dispatched and tenant is marked `provisioning` / `migration` with errors cleared; job tests assert `ready` / `complete` on success and `failed` / `migration` on exception.
+- **Create tenant**: tenant row stays `provisioning` / `database` until a worker runs `TenantMigrationSetup`; tests assert dispatch and domain persistence.
+- **Create tenant user**: asserts `EnsureTenantUserJob` dispatch; job test asserts `TenantSetupApiClient::ensureTenantUser` is invoked.
+- **Run migrations**: HTTP path asserts `RetryTenantMigrationSetup` dispatch and tenant marked `provisioning` / `migration`; job tests assert `ready` / `complete` on success and `failed` / `migration` on exception.
 
 Local environment note: app is served via Herd at `https://tenant-management.test`.

@@ -31,8 +31,8 @@ tenant-management/
 | `app/Http/Middleware/` | Custom middleware (e.g. `EnsureUserIsEnabled`, `EnsureUserHasPermission`). |
 | `app/Http/Requests/` | Form Request classes; mirror controller grouping (e.g. `Users/UserRequest`). |
 | `app/Models/` | Eloquent models. |
-| `app/Services/` | Domain services (e.g. `TenantProvisioningService`, `TenantModuleSyncService`) for provisioning and cross-app sync orchestration. |
-| `app/Jobs/` | Queued jobs: `TenantMigrationSetup`, `RetryTenantMigrationSetup`, `EnsureTenantUserJob` (tenant provisioning and retries; see [ARCHITECTURE.md](ARCHITECTURE.md)). |
+| `app/Services/` | Domain services (e.g. `TenantSetupApiClient`, `TenantProvisioningService`, `TenantModuleSyncService`) for internal setup API calls and sync orchestration. |
+| `app/Jobs/` | Queued jobs: `TenantMigrationSetup`, `TenantSetupCreateDatabase`, `TenantSetupRunMigrations`, `TenantSetupRunSeeders`, `RetryTenantMigrationSetup`, `EnsureTenantUserJob`. |
 | `app/Concerns/` | Reusable traits (e.g. `HasResourcePermission`). |
 | `app/Actions/` | Single-action or Fortify action classes (e.g. `Fortify/CreateNewUser`). |
 | `app/Providers/` | Service providers (e.g. `FortifyServiceProvider`, `AppServiceProvider`). |
@@ -106,7 +106,16 @@ Tenant setup/provisioning tracking columns live in:
 ## Config and environment
 
 - **Environment**: `.env` (not committed). Copy from `.env.example`. Key config: `APP_*`, `DB_*`, `SESSION_*`, `QUEUE_*`, `VITE_APP_NAME`.
-- **Queues**: Tenant flows require a running worker. Prefer `php artisan queue:work` (or Horizon) listening to at least: `initial_tenant_migration_setup`, `retry_tenant_migration_setup`, `ensure_tenant_user` — or use a single worker without `--queue` if all jobs use the default connection and you process every queue.
+- **Queues**: Tenant flows require a running worker. Prefer `php artisan queue:work` (or Horizon) listening to at least: `initial_tenant_migration_setup`, `tenant_migration_setup`, `retry_tenant_migration_setup`, `ensure_tenant_user` — or use a single worker without `--queue` if all jobs use the default connection and you process every queue.
+- **Internal setup API config**: `config/tenant_applications.php` contains:
+  - `internal_api` auth settings (`issuer`, `shared_secret`, `timeout_seconds`, `default_scheme`);
+  - per-application `api_base_urls` (e.g. `VETMANAGEMENTSYSTEM_API_BASE_URL`).
+- **Dynamic base URL routing**: `TenantSetupApiClient` resolves target host in order: tenant `setup_api_base_url` -> first tenant domain -> application fallback URL.
+- **Scheme behavior**: if URL has no scheme, client uses `INTERNAL_SETUP_DEFAULT_SCHEME`, then `APP_URL` scheme, then `https`.
+- **Fallback behavior**:
+  - token endpoint `404` on one candidate host triggers retry on next candidate;
+  - failed HTTPS connection to token endpoint triggers HTTP retry for that host.
+- **Diagnostics**: token request exceptions include endpoint URL + HTTP status + server response message when available.
 - **Config files**: `config/*.php`. Use `config('key')` in code; avoid `env()` outside config.
 
 ---

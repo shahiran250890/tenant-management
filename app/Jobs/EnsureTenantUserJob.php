@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Tenant;
-use App\Services\TenantProvisioningService;
+use App\Services\TenantSetupApiClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -16,7 +16,7 @@ class EnsureTenantUserJob implements ShouldQueue
         $this->onQueue('ensure_tenant_user');
     }
 
-    public function handle(TenantProvisioningService $provisioningService): void
+    public function handle(TenantSetupApiClient $apiClient): void
     {
         $tenant = Tenant::query()->find($this->tenantId);
 
@@ -25,7 +25,7 @@ class EnsureTenantUserJob implements ShouldQueue
         }
 
         try {
-            $provisioningService->ensureTenantUser($tenant);
+            $apiClient->ensureTenantUser($tenant);
         } catch (\Throwable $exception) {
             report($exception);
 

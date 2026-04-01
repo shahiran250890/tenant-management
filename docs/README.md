@@ -12,7 +12,7 @@ Entry point for system documentation. Use this to find where concepts are explai
 
 | Document | Contents |
 |----------|----------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Request flow, queued tenant jobs (`TenantMigrationSetup`, retries, ensure-user), setup-state transitions |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Request flow, queued tenant jobs, internal setup API token/auth flow, setup-state transitions |
 | [FAILURE-RECOVERY.md](FAILURE-RECOVERY.md) | Operator playbook: stuck provisioning, failed stages, queues, paths, retries |
 | [CODEBASE.md](CODEBASE.md) | Folder structure and where to add new features (pages, controllers, components) |
 | [COMPONENTS.md](COMPONENTS.md) | Custom React components: props, usage, examples |

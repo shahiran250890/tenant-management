@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Tenant;
-use App\Services\TenantProvisioningService;
+use App\Services\TenantSetupApiClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -16,7 +16,7 @@ class RetryTenantMigrationSetup implements ShouldQueue
         $this->onQueue('retry_tenant_migration_setup');
     }
 
-    public function handle(TenantProvisioningService $provisioningService): void
+    public function handle(TenantSetupApiClient $apiClient): void
     {
         $tenant = Tenant::query()->find($this->tenantId);
 
@@ -25,7 +25,7 @@ class RetryTenantMigrationSetup implements ShouldQueue
         }
 
         try {
-            $provisioningService->runTenantMigrations($tenant);
+            $apiClient->runMigrations($tenant);
             $tenant->update([
                 'setup_status' => 'ready',
                 'setup_stage' => 'complete',

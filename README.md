@@ -97,6 +97,7 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 - Assign modules to tenants (`PUT /tenants/{tenant}/modules`)
 - Tenant details (e.g. database credentials stored encrypted)
 - Setup status and error log in the UI; initial provisioning, migration retries, and “create tenant user” run as **queued jobs** (see `docs/ARCHITECTURE.md`; use `composer run dev` or `php artisan queue:work` so workers process jobs)
+- Provisioning/ensure-user calls are executed through authenticated internal setup APIs on managed apps (issuer/signature -> short-lived bearer token -> stage endpoints)
 
 ### System settings (admin)
 
