@@ -2,6 +2,7 @@
 
 use App\Jobs\EnsureTenantUserJob;
 use App\Jobs\RetryTenantMigrationSetup;
+use App\Jobs\RunTenantFakeDataSeeder;
 use App\Jobs\TenantMigrationSetup;
 use App\Models\Application;
 use App\Models\Tenant;
@@ -267,6 +268,35 @@ test('ensure tenant user job calls tenant setup api client', function () {
 
     $tenant = createTenant();
     $job = new EnsureTenantUserJob($tenant->id);
+    $job->handle(app(TenantSetupApiClient::class));
+});
+
+test('run fake data queues fake data seeder job', function () {
+    /** @var TestCase $this */
+    Bus::fake();
+
+    $user = User::factory()->create();
+    $user->givePermissionTo('view tenant', 'update tenant');
+    $tenant = createTenant();
+    $this->actingAs($user);
+
+    $response = $this->post(route('tenants.run-fake-data', $tenant));
+
+    $response->assertRedirect(route('tenants.index'));
+    $response->assertSessionHas('success');
+    Bus::assertDispatched(RunTenantFakeDataSeeder::class, function (RunTenantFakeDataSeeder $job) use ($tenant) {
+        return $job->tenantId === $tenant->id;
+    });
+});
+
+test('run tenant fake data job calls tenant setup api client', function () {
+    /** @var TestCase $this */
+    $this->mock(TenantSetupApiClient::class, function ($mock) {
+        $mock->shouldReceive('runFakeDataSeeders')->once()->andReturn(null);
+    });
+
+    $tenant = createTenant();
+    $job = new RunTenantFakeDataSeeder($tenant->id);
     $job->handle(app(TenantSetupApiClient::class));
 });
 

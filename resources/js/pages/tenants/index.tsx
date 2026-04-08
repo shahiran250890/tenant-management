@@ -3,7 +3,7 @@
  * Uses Inertia + React; tenant status (is_enabled) can be toggled via AJAX with SweetAlert feedback.
  */
 import { Form, Head, router, usePage } from '@inertiajs/react';
-import { AlertTriangle, Database, EllipsisVertical, Eye, Layers, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { AlertTriangle, Database, EllipsisVertical, Eye, FlaskConical, Layers, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import EnableStatusToggle from '@/components/enable-status-toggle';
 import FlashMessageDialog from '@/components/flash-message-dialog';
@@ -379,6 +379,18 @@ export default function Tenants({
                                                             >
                                                                 <Database className="size-4" />
                                                                 Run migrations
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canUpdateTenant && (
+                                                            <DropdownMenuItem
+                                                                onSelect={() =>
+                                                                    router.post(
+                                                                        `/tenants/${tenant.id}/run-fake-data`,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <FlaskConical className="size-4" />
+                                                                Fake data
                                                             </DropdownMenuItem>
                                                         )}
                                                         {canUpdateTenant && (

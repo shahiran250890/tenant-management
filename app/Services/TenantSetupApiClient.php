@@ -34,6 +34,14 @@ class TenantSetupApiClient
     }
 
     /**
+     * Call internal setup API to run fake-data seeders (excluding user seeder).
+     */
+    public function runFakeDataSeeders(Tenant $tenant): void
+    {
+        $this->callStageEndpoint($tenant, 'fake-seeders');
+    }
+
+    /**
      * Ensure bootstrap tenant user exists in target application.
      */
     public function ensureTenantUser(Tenant $tenant): string

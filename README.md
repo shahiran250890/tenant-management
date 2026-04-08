@@ -96,8 +96,14 @@ This project is **Herd-isolated**, so the site is already available via Herd—n
 - Enable/disable tenants
 - Assign modules to tenants (`PUT /tenants/{tenant}/modules`)
 - Tenant details (e.g. database credentials stored encrypted)
-- Setup status and error log in the UI; initial provisioning, migration retries, and “create tenant user” run as **queued jobs** (see `docs/ARCHITECTURE.md`; use `composer run dev` or `php artisan queue:work` so workers process jobs)
+- Setup status and error log in the UI; initial provisioning, migration retries, “create tenant user”, and **Fake data** run as **queued jobs** (see `docs/ARCHITECTURE.md`; use `composer run dev` or `php artisan queue:work` so workers process jobs)
 - Provisioning/ensure-user calls are executed through authenticated internal setup APIs on managed apps (issuer/signature -> short-lived bearer token -> stage endpoints)
+
+### Tenant setup actions
+
+- **Run migrations**: queues migration retry for a tenant.
+- **Create tenant user**: queues user bootstrap flow (`ensure-tenant-user`) in the managed app.
+- **Fake data**: queues fake-data seeding in the managed app (currently `PatientSeeder`) and intentionally excludes `UserSeeder`.
 
 ### System settings (admin)
 

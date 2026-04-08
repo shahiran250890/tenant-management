@@ -21,6 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('{tenant}/enabled', [TenantManagementController::class, 'updateEnabled'])->name('enabled.update');
         Route::post('{tenant}/create-tenant-user', [TenantManagementController::class, 'createTenantUser'])->name('create-tenant-user');
         Route::post('{tenant}/run-migrations', [TenantManagementController::class, 'runTenantMigrations'])->name('run-migrations');
+        Route::post('{tenant}/run-fake-data', [TenantManagementController::class, 'runTenantFakeDataSeeders'])->name('run-fake-data');
     });
     Route::resource('tenants', TenantManagementController::class);
 });

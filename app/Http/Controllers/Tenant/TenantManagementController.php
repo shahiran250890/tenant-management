@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\TenantRequest;
 use App\Jobs\EnsureTenantUserJob;
 use App\Jobs\RetryTenantMigrationSetup;
+use App\Jobs\RunTenantFakeDataSeeder;
 use App\Jobs\TenantMigrationSetup;
 use App\Models\Application;
 use App\Models\Module;
@@ -163,6 +164,31 @@ class TenantManagementController extends Controller
             return redirect()
                 ->route('tenants.index')
                 ->with('error', 'Failed to queue tenant migrations: '.$e->getMessage())
+                ->with('error_key', now()->timestamp);
+        }
+    }
+
+    /**
+     * Run fake-data seeders for tenant data generation (excluding user seeder).
+     */
+    public function runTenantFakeDataSeeders(Tenant $tenant): RedirectResponse
+    {
+        $this->authorize('update tenant');
+
+        try {
+            RunTenantFakeDataSeeder::dispatch($tenant->id)
+                ->delay(now()->addSeconds(5));
+
+            return redirect()
+                ->route('tenants.index')
+                ->with('success', 'Run fake data has been queued for '.$tenant->name.'. It will run shortly.')
+                ->with('success_key', now()->timestamp);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('tenants.index')
+                ->with('error', 'Failed to queue fake data seeding: '.$e->getMessage())
                 ->with('error_key', now()->timestamp);
         }
     }
