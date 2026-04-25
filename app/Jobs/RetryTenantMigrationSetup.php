@@ -24,8 +24,12 @@ class RetryTenantMigrationSetup implements ShouldQueue
             return;
         }
 
+        $setupStage = 'migration';
+
         try {
             $apiClient->runMigrations($tenant);
+            $setupStage = 'seeder';
+            $apiClient->runSeeders($tenant);
             $tenant->update([
                 'setup_status' => 'ready',
                 'setup_stage' => 'complete',
@@ -36,7 +40,7 @@ class RetryTenantMigrationSetup implements ShouldQueue
         } catch (\Throwable $exception) {
             $tenant->update([
                 'setup_status' => 'failed',
-                'setup_stage' => 'migration',
+                'setup_stage' => $setupStage,
                 'setup_error' => $exception->getMessage(),
                 'setup_failed_at' => now(),
                 'setup_completed_at' => null,

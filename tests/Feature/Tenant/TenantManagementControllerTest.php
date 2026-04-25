@@ -327,6 +327,7 @@ test('retry tenant migration setup job marks tenant ready when migrations succee
     /** @var TestCase $this */
     $this->mock(TenantSetupApiClient::class, function ($mock) {
         $mock->shouldReceive('runMigrations')->once()->andReturn(null);
+        $mock->shouldReceive('runSeeders')->once()->andReturn(null);
     });
 
     $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
@@ -345,17 +346,39 @@ test('retry tenant migration setup job marks tenant failed when migrations throw
     $this->mock(TenantSetupApiClient::class, function ($mock) {
         $mock->shouldReceive('runMigrations')
             ->once()
-            ->andThrow(new \RuntimeException('Migration failed'));
+            ->andThrow(new RuntimeException('Migration failed'));
+        $mock->shouldReceive('runSeeders')->never();
     });
 
     $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
     $job = new RetryTenantMigrationSetup($tenant->id);
 
-    expect(fn () => $job->handle(app(TenantSetupApiClient::class)))->toThrow(\RuntimeException::class);
+    expect(fn () => $job->handle(app(TenantSetupApiClient::class)))->toThrow(RuntimeException::class);
 
     $tenant->refresh();
     expect($tenant->setup_status)->toBe('failed');
     expect($tenant->setup_stage)->toBe('migration');
     expect($tenant->setup_error)->toContain('Migration failed');
+    expect($tenant->setup_failed_at)->not->toBeNull();
+});
+
+test('retry tenant migration setup job marks tenant failed at seeder stage when seeding throws', function () {
+    /** @var TestCase $this */
+    $this->mock(TenantSetupApiClient::class, function ($mock) {
+        $mock->shouldReceive('runMigrations')->once()->andReturn(null);
+        $mock->shouldReceive('runSeeders')
+            ->once()
+            ->andThrow(new RuntimeException('Seeding failed'));
+    });
+
+    $tenant = createTenant(['setup_status' => 'provisioning', 'setup_stage' => 'migration']);
+    $job = new RetryTenantMigrationSetup($tenant->id);
+
+    expect(fn () => $job->handle(app(TenantSetupApiClient::class)))->toThrow(RuntimeException::class);
+
+    $tenant->refresh();
+    expect($tenant->setup_status)->toBe('failed');
+    expect($tenant->setup_stage)->toBe('seeder');
+    expect($tenant->setup_error)->toContain('Seeding failed');
     expect($tenant->setup_failed_at)->not->toBeNull();
 });
